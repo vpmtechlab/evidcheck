@@ -114,6 +114,65 @@ function buildPrompt(serviceType: string, entityData: EntityData): string {
 		serviceType.includes("pin") ||
 		serviceType === "tax_information";
 
+	const isBiometric =
+		serviceType.includes("selfie") ||
+		serviceType.includes("biometric") ||
+		serviceType.includes("user_registration") ||
+		serviceType === "smart_selfie_registration" ||
+		serviceType === "smart_selfie_auth";
+
+	const isAddress =
+		serviceType.includes("address") ||
+		serviceType === "utility_bill" ||
+		serviceType === "bank_statement";
+
+	if (isBiometric) {
+		const name =
+			[entityData.firstName, entityData.lastName ?? entityData.surname]
+				.filter(Boolean)
+				.join(" ") || "User";
+		return `You are a SmartSelfie™ AI Biometric and Liveness Verification Engine for ${countryFull}.
+Evaluate the selfie biometric authentication and liveness check for "${name}".
+
+Return ONLY valid JSON with this exact shape:
+{
+  "subjectName": "${name}",
+  "livenessScore": 0.98,
+  "faceMatchConfidence": "99.1%",
+  "faceMatched": true,
+  "antiSpoofingStatus": "Passed",
+  "eyesOpen": true,
+  "headPose": "Frontal (Optimal)",
+  "lightingQuality": "Good",
+  "verificationStatus": "approved",
+  "verificationMessage": "SmartSelfie™ biometric liveness and face match verified successfully"
+}
+Return absolutely nothing except the JSON object.`;
+	}
+
+	if (isAddress) {
+		const postal = entityData.postalAddress || entityData.postalCode || "00100";
+		const addr = entityData.address || entityData.postalAddress || "P.O. Box 12345";
+		return `You are an Address Verification and Document Proof engine for ${countryFull}.
+Verify the proof of address document for address "${addr}, ${postal}".
+
+Return ONLY valid JSON with this exact shape:
+{
+  "addressProvided": "${addr}",
+  "postalCode": "${postal}",
+  "country": "${countryFull}",
+  "utilityProvider": "National Utility Provider",
+  "documentType": "Utility Bill",
+  "documentStatus": "Authentic",
+  "addressMatched": true,
+  "matchConfidence": "96.4%",
+  "issueDate": "2024-01-10",
+  "verificationStatus": "approved",
+  "verificationMessage": "Proof of address document verified and matched against database"
+}
+Return absolutely nothing except the JSON object.`;
+	}
+
 	if (isKYB) {
 		const company = entityData.companyNumber
 			? `registration number ${entityData.companyNumber}`

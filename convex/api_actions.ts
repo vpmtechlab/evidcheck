@@ -94,3 +94,73 @@ export const verifyAndRun = action({
 		}
 	},
 });
+
+/**
+ * Retrieve verification job results by Job ID via REST API.
+ */
+export const getJobResult = action({
+	args: {
+		apiKey: v.string(),
+		jobId: v.string(),
+	},
+	handler: async (
+		ctx,
+		args,
+	): Promise<{
+		success: boolean;
+		status: number;
+		message: string;
+		jobId?: Id<"jobs">;
+		serviceType?: string;
+		resultStatus?: string;
+		data?: Record<string, unknown>;
+		feesCharged?: number;
+		createdAt?: number;
+	}> => {
+		// 1. Authenticate API Key
+		const company = await ctx.runQuery(api.users.verifyApiKey, {
+			apiKey: args.apiKey,
+		});
+		if (!company) {
+			return {
+				success: false,
+				status: 401,
+				message: "Invalid or inactive API Key.",
+			};
+		}
+
+		// 2. Fetch the verification job
+		try {
+			const job = await ctx.runQuery(api.verifications.getVerificationById, {
+				jobId: args.jobId as Id<"jobs">,
+			});
+
+			if (!job || job.companyId !== company._id) {
+				return {
+					success: false,
+					status: 404,
+					message: "Verification job not found or does not belong to your organization.",
+				};
+			}
+
+			return {
+				success: true,
+				status: 200,
+				jobId: job._id,
+				serviceType: job.serviceType,
+				resultStatus: job.resultStatus,
+				message: job.message || "Verification retrieved successfully.",
+				data: (job.resultPayload as Record<string, unknown>) || {},
+				feesCharged: job.feesCharged,
+				createdAt: job.createdAt,
+			};
+		} catch {
+			return {
+				success: false,
+				status: 404,
+				message: "Invalid Job ID format.",
+			};
+		}
+	},
+});
+

@@ -18,6 +18,8 @@ import { api } from "@/convex/_generated/api";
 import { Loader2, Info } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
+import { CameraCapture } from "./camera-capture";
+import { DocumentUpload } from "./document-upload";
 
 const countries = [
 	{ code: "KE", name: "Kenya", flag: "🇰🇪" },
@@ -51,7 +53,12 @@ export function FillDetails({
 		firstName: "",
 		lastName: "",
 	});
+
+	const [selfieImage, setSelfieImage] = useState<string | null>(null);
+	const [documentData, setDocumentData] = useState<string | null>(null);
+	const [documentName, setDocumentName] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
+
 	const { member, setShowTopUp } = useApp();
 	const runVerification = useAction(api.verifications.runVerification);
 
@@ -59,10 +66,57 @@ export function FillDetails({
 	const categoryData = useQuery(api.services.getBySlug, { slug: service.slug });
 	const checkTypes = categoryData?.checkTypes ?? [];
 
+	const isBiometric =
+		service?.slug === "user_registration" ||
+		service?.slug === "biometric_2fa" ||
+		action?.slug?.includes("selfie") ||
+		action?.slug?.includes("biometric");
+
+	const isAddress =
+		service?.slug === "address_verification" ||
+		action?.slug?.includes("address");
+
+	const isKYB = service?.slug === "kyb";
+	const isAML = service?.slug === "aml";
+	const isKRA = service?.slug === "kra";
+
+	// Effective service type (fallback to action/service slug if no check types in dropdown)
+	const effectiveServiceType =
+		formData.serviceType ||
+		(checkTypes.length === 0 ? action?.slug || service?.slug : "");
+
 	// Fetch real price from Convex based on selected service check type
-	const pricingData = useQuery(api.pricing.getPriceByServiceId, 
-		formData.serviceType ? { serviceId: formData.serviceType } : "skip"
+	const pricingData = useQuery(
+		api.pricing.getPriceByServiceId,
+		effectiveServiceType ? { serviceId: effectiveServiceType } : "skip",
 	);
+
+	const handleChange = (field: string, value: string) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+	};
+
+	const canSubmit = () => {
+		if (isBiometric) {
+			return !!selfieImage && !!(formData.firstName || formData.idNumber);
+		}
+		if (isAddress) {
+			return !!documentData && !!formData.postalAddress;
+		}
+		if (isKYB) {
+			return !!formData.firstName && !!formData.idNumber;
+		}
+		if (isAML) {
+			return !!formData.firstName && !!formData.lastName;
+		}
+		if (isKRA) {
+			return !!formData.idNumber;
+		}
+		// KYC default
+		return (
+			!!effectiveServiceType &&
+			!!formData.idNumber
+		);
+	};
 
 	const handleSubmit = async () => {
 		if (!member?.companyId || !member?.id) {
@@ -72,29 +126,36 @@ export function FillDetails({
 
 		setIsLoading(true);
 		try {
-			// 1. Call the Convex action to deduct balance, create job, and simulate response
-			// Note: We no longer call seedMockData() here, as it was associate verifications with the wrong company.
+			const payload = {
+				...formData,
+				serviceType: effectiveServiceType,
+				selfieImage: selfieImage || undefined,
+				documentData: documentData || undefined,
+				documentName: documentName || undefined,
+			};
+
 			const result = await runVerification({
 				companyId: member.companyId as Id<"companies">,
 				userId: member.id as Id<"users">,
-				serviceType: formData.serviceType || service.slug,
-				entityData: formData,
+				serviceType: effectiveServiceType || "enhanced_kyc",
+				entityData: payload,
 				source: "web_api",
 			});
 
 			toast.success("Verification completed successfully!");
-			// 2. Delegate to parent component
 			onSubmit({
-				...formData,
+				...payload,
 				jobId: result.jobId,
 				resultPayload: result.data,
 			});
 		} catch (error: unknown) {
 			const message =
 				error instanceof Error ? error.message : "Failed to run verification";
-			
-			// Detect insufficient funds to show top-up modal
-			if (message.toLowerCase().includes("insufficient balance") || message.toLowerCase().includes("funds")) {
+
+			if (
+				message.toLowerCase().includes("insufficient balance") ||
+				message.toLowerCase().includes("funds")
+			) {
 				toast.error("Insufficient funds! Please top up to proceed.");
 				setShowTopUp(true);
 			} else {
@@ -105,20 +166,17 @@ export function FillDetails({
 		}
 	};
 
-	const handleChange = (field: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }));
-	};
-
-	const isKYB = service?.slug === "kyb";
-	const isAML = service?.slug === "aml";
-	const isKRA = service?.slug === "kra";
-	
-	// Determine if Name fields should be shown (KYB and AML need names, KYC/KRA don't)
-	const showNames = isKYB || isAML;
-	
-	// Determine main ID field label (KRA uses PIN, others use ID Number)
-	const idLabel = isKRA ? "KRA PIN" : isKYB ? "Company Registration Number" : "ID Number";
-	const idPlaceholder = isKRA ? "Enter KRA PIN" : isKYB ? "Enter company registration number" : "Enter ID number";
+	const showNames = isKYB || isAML || isBiometric;
+	const idLabel = isKRA
+		? "KRA PIN"
+		: isKYB
+			? "Company Registration Number"
+			: "ID / Document Number";
+	const idPlaceholder = isKRA
+		? "Enter KRA PIN (e.g. A012345678X)"
+		: isKYB
+			? "Enter company registration number"
+			: "Enter national ID or passport number";
 
 	return (
 		<div className="space-y-6">
@@ -133,10 +191,9 @@ export function FillDetails({
 			</div>
 
 			<div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-      
 				{/* Country Select */}
-				<div className="gap-2">
-					<Label htmlFor="country-select">Select country *</Label>
+				<div className="grid gap-2">
+					<Label htmlFor="country-select">Select Country *</Label>
 					<Select
 						value={formData.country}
 						onValueChange={(val) => handleChange("country", val || "")}
@@ -154,62 +211,95 @@ export function FillDetails({
 					</Select>
 				</div>
 
-				{/* Service Check Type — dynamically loaded from Convex */}
-				<div className="grid gap-2">
-					<Label htmlFor="service-type-select">Choose Service Type *</Label>
-					<Select
-						value={formData.serviceType}
-						onValueChange={(val) => handleChange("serviceType", val || "")}
-						disabled={checkTypes.length === 0}
-					>
-						<SelectTrigger id="service-type-select" className="w-full">
-							<SelectValue
-								placeholder={
-									categoryData === undefined
-									? "Loading..."
-									: checkTypes.length === 0
-									? "No check types available"
-									: "Select a service type"
-								}
-							/>
-						</SelectTrigger>
-						<SelectContent>
-							{checkTypes.map((type) => (
-								<SelectItem key={type._id} value={type.slug}>
-									{type.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					{formData.serviceType && (
-						<div className="mt-1 flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-							<Info size={14} className="text-blue-600" />
-							<p className="text-xs font-semibold text-blue-700">
-								Service Fee: {pricingData ? `${pricingData.price.toFixed(2)} USD` : "Loading..."}
-							</p>
-						</div>
-					)}
-				</div>
+				{/* Service Check Type Dropdown (Only show if category has check types) */}
+				{checkTypes.length > 0 && (
+					<div className="grid gap-2">
+						<Label htmlFor="service-type-select">Choose Service Type *</Label>
+						<Select
+							value={formData.serviceType}
+							onValueChange={(val) => handleChange("serviceType", val || "")}
+						>
+							<SelectTrigger id="service-type-select" className="w-full">
+								<SelectValue
+									placeholder={
+										categoryData === undefined
+											? "Loading..."
+											: "Select a service type"
+									}
+								/>
+							</SelectTrigger>
+							<SelectContent>
+								{checkTypes.map((type) => (
+									<SelectItem key={type._id} value={type.slug}>
+										{type.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+
+				{/* Price Banner */}
+				{effectiveServiceType && (
+					<div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+						<Info size={14} className="text-blue-600 shrink-0" />
+						<p className="text-xs font-semibold text-blue-700">
+							Service Fee:{" "}
+							{pricingData ? `${pricingData.price.toFixed(2)} USD` : "Standard Tier ($10.00 USD)"}
+						</p>
+					</div>
+				)}
 
 				<div className="h-px bg-gray-100 my-2" />
 
-				{/* Conditional Fields Generation */}
+				{/* Dynamic Input Modules */}
 				<div className="space-y-4">
-					{/* Name Fields (Conditional) */}
+					{/* 1. Biometric Camera Capture Mode */}
+					{isBiometric && (
+						<CameraCapture
+							capturedImage={selfieImage}
+							onCapture={(dataUrl) => setSelfieImage(dataUrl)}
+							onReset={() => setSelfieImage(null)}
+						/>
+					)}
+
+					{/* 2. Document Upload Mode for Address Verification or Supporting Docs */}
+					{isAddress && (
+						<DocumentUpload
+							label="Proof of Address Document *"
+							description="Upload a Utility Bill, Bank Statement, or Tenancy Agreement (PDF, PNG, JPG up to 10MB)"
+							documentData={documentData}
+							documentName={documentName}
+							onUpload={(dataUrl, name) => {
+								setDocumentData(dataUrl);
+								setDocumentName(name);
+							}}
+							onRemove={() => {
+								setDocumentData(null);
+								setDocumentName(null);
+							}}
+						/>
+					)}
+
+					{/* Name Inputs */}
 					{showNames && (
-						<div className="grid grid-cols-1 gap-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="grid gap-2">
-								<Label htmlFor="firstName">{isKYB ? "Company Name" : "First Name"} *</Label>
+								<Label htmlFor="firstName">
+									{isKYB ? "Company Name" : "First Name"} *
+								</Label>
 								<Input
 									id="firstName"
 									value={formData.firstName}
 									onChange={(e) => handleChange("firstName", e.target.value)}
-									placeholder={isKYB ? "Enter full company name" : "Enter first name"}
+									placeholder={
+										isKYB ? "Enter full company name" : "Enter first name"
+									}
 								/>
 							</div>
 							{!isKYB && (
 								<div className="grid gap-2">
-									<Label htmlFor="lastName">Last Name *</Label>
+									<Label htmlFor="lastName">Last Name {isAML ? "*" : "(Optional)"}</Label>
 									<Input
 										id="lastName"
 										value={formData.lastName}
@@ -221,64 +311,73 @@ export function FillDetails({
 						</div>
 					)}
 
-					{/* ID / PIN / Company Number Field (Common for all but customized label) */}
-					<div className="w-full grid gap-2">
-						<Label htmlFor="idNumber">{idLabel} *</Label>
-						<Input
-							id="idNumber"
-							value={formData.idNumber}
-							onChange={(e) => handleChange("idNumber", e.target.value)}
-							placeholder={idPlaceholder}
-						/>
-						{(!isKYB && !isAML) && (
-							<p className="text-[10px] text-gray-400 italic">
-								* Name and personal details will be automatically retrieved during verification
-							</p>
-						)}
-					</div>
+					{/* ID / PIN / Registration Number Field */}
+					{!isAddress && (
+						<div className="grid gap-2">
+							<Label htmlFor="idNumber">
+								{idLabel} {isBiometric ? "(Optional)" : "*"}
+							</Label>
+							<Input
+								id="idNumber"
+								value={formData.idNumber}
+								onChange={(e) => handleChange("idNumber", e.target.value)}
+								placeholder={idPlaceholder}
+							/>
+							{!isKYB && !isAML && !isBiometric && (
+								<p className="text-[10px] text-gray-400 italic">
+									* Personal records will be verified against official national registries
+								</p>
+							)}
+						</div>
+					)}
 
-					{/* KYB Specific Address Fields */}
-					{isKYB && (
-						<>
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="grid gap-2">
-									<Label htmlFor="postalAddress">
-										Postal address (5 digit code) *
-									</Label>
-									<Input
-										id="postalAddress"
-										value={formData.postalAddress}
-										onChange={(e) =>
-											handleChange("postalAddress", e.target.value)
-										}
-										placeholder="Enter postal address"
-									/>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="postalCode">Postal Code *</Label>
-									<Input
-										id="postalCode"
-										value={formData.postalCode}
-										onChange={(e) => handleChange("postalCode", e.target.value)}
-										placeholder="Enter postal code"
-									/>
-								</div>
+					{/* Address Fields for KYB or Address Verification */}
+					{(isKYB || isAddress) && (
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="postalAddress">
+									{isAddress ? "Street / Physical Address *" : "Postal Address *"}
+								</Label>
+								<Input
+									id="postalAddress"
+									value={formData.postalAddress}
+									onChange={(e) =>
+										handleChange("postalAddress", e.target.value)
+									}
+									placeholder={
+										isAddress
+											? "e.g. 45 Kimathi Street, Suite 4B"
+											: "Enter postal address / P.O. Box"
+									}
+								/>
 							</div>
-						</>
+							<div className="grid gap-2">
+								<Label htmlFor="postalCode">Postal / Zip Code</Label>
+								<Input
+									id="postalCode"
+									value={formData.postalCode}
+									onChange={(e) => handleChange("postalCode", e.target.value)}
+									placeholder="e.g. 00100"
+								/>
+							</div>
+						</div>
 					)}
 				</div>
 			</div>
 
+			{/* Actions */}
 			<div className="flex items-center gap-3">
 				<Button onClick={onGoBack} variant="outline" disabled={isLoading}>
 					Go Back
 				</Button>
 				<Button
 					onClick={handleSubmit}
-					disabled={isLoading || !formData.serviceType || !formData.idNumber}
+					disabled={isLoading || !canSubmit()}
 					className="bg-primary hover:bg-[#146c11] text-white min-w-[140px]"
 				>
-					{isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+					{isLoading ? (
+						<Loader2 className="w-4 h-4 animate-spin mr-2" />
+					) : null}
 					{isLoading ? "Processing..." : "Submit Details"}
 				</Button>
 			</div>

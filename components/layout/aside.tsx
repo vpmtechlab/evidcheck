@@ -17,6 +17,7 @@ import {
   MdHistory
 } from "react-icons/md";
 import { LogOut, PanelRightOpen, PanelLeftOpen } from "lucide-react";
+import { clearSessionCookie } from "@/lib/session-cookie";
 
 const clientNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: MdDashboard, exact: true },
@@ -58,6 +59,7 @@ export function Aside() {
   const navItems = viewMode === "admin" ? adminNavItems : clientNavItems;
 
   const handleLogout = () => {
+    clearSessionCookie();
     localStorage.removeItem("userId");
     localStorage.removeItem("companyId");
     setMember(null);

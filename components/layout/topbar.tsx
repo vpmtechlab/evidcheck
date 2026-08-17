@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { clearSessionCookie } from "@/lib/session-cookie";
 
 export function Topbar() {
 	const { sideBarOpen, setSideBarOpen, device, member, setMember, viewMode } =
@@ -42,6 +43,7 @@ export function Topbar() {
 	};
 
 	const handleLogout = () => {
+		clearSessionCookie();
 		localStorage.removeItem("userId");
 		localStorage.removeItem("companyId");
 		setMember(null);

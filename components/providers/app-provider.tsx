@@ -8,6 +8,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useDevice } from "@/hooks/use-device";
 import TopUpModal from "@/components/modals/topup-modal";
 import InviteUserModal from "@/components/modals/invite-user-modal";
+import { getSessionCookie, setSessionCookie } from "@/lib/session-cookie";
 
 export interface BreadcrumbItem {
 	title: string;
@@ -73,6 +74,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 	// Use either the manually set member (from login) or the hydrated user (from persistence)
 	const currentMember = member || (hydratedUser as Member | null);
+
+	React.useEffect(() => {
+		if (typeof window !== "undefined") {
+			const storedUserId = localStorage.getItem("userId");
+			const storedCompanyId = localStorage.getItem("companyId");
+			const session = getSessionCookie();
+
+			if (storedUserId && !session) {
+				setSessionCookie({
+					userId: storedUserId,
+					companyId: storedCompanyId || "",
+					role: (currentMember?.role as string) || "admin",
+					email: (currentMember?.email as string) || "",
+					isSuperAdmin: (currentMember?.email as string)?.endsWith("@vpmtechlab.com"),
+				});
+			} else if (!storedUserId && session?.userId) {
+				localStorage.setItem("userId", session.userId);
+				if (session.companyId) {
+					localStorage.setItem("companyId", session.companyId);
+				}
+			}
+		}
+	}, [currentMember]);
 
 	return (
 		<AppContext.Provider
