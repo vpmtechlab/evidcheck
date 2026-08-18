@@ -11,8 +11,8 @@ const urbanist = Urbanist({
 });
 
 export const metadata: Metadata = {
-  title: "Trustcert",
-  description: "Compliance Management",
+  title: "EvidCheck",
+  description: "Real-time KYB, KYB Verification",
 };
 
 export default function RootLayout({
