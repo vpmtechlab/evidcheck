@@ -22,6 +22,7 @@ export interface Member {
 	email?: string;
 	role?: string;
 	companyId?: string;
+	companyName?: string;
 	profile_image_url?: string;
 	[key: string]: unknown;
 }

@@ -6,34 +6,33 @@ import { mutation } from "./_generated/server";
 
 const SERVICE_SEED = [
   {
-    name: "KYC Services",
-    slug: "kyc",
-    icon: "UserCheck",
-    color: "bg-blue-100 text-blue-600",
+    name: "Business Registration Check",
+    slug: "business_registration",
+    icon: "Building2",
+    color: "bg-indigo-100 text-indigo-600",
     order: 1,
+    description: "Verify registered businesses, sole proprietorships, and limited companies via BRS Kenya.",
     actions: [
-      { label: "Enhanced KYC", slug: "enhanced_kyc", order: 1 },
-      { label: "Biometric KYC", slug: "biometric_kyc", order: 2 },
-      { label: "Document Verification", slug: "document_verification", order: 3 },
+      { label: "Business / Company Registration Check", slug: "business_search", order: 1 },
     ],
     checkTypes: [
-      { label: "NATIONAL ID", slug: "national_id", order: 1, price: 5.0 },
-      { label: "PASSPORT", slug: "passport", order: 2, price: 10.0 },
-      { label: "DRIVER'S LICENSE", slug: "drivers_license", order: 3, price: 8.0 },
+      { label: "LIMITED COMPANY / BUSINESS REGISTRATION", slug: "business_registration", order: 1, price: 15.0 },
     ],
   },
   {
-    name: "KYB Services",
-    slug: "kyb",
-    icon: "Building2",
-    color: "bg-indigo-100 text-indigo-600",
+    name: "ID Check",
+    slug: "national_id",
+    icon: "UserCheck",
+    color: "bg-blue-100 text-blue-600",
     order: 2,
+    description: "Government identity validation for individuals (National ID, Alien ID, Passport) via IPRS.",
     actions: [
-      { label: "Business Verification", slug: "business_verification", order: 1 },
+      { label: "Identity Document Verification", slug: "national_id_verify", order: 1 },
     ],
     checkTypes: [
-      { label: "BUSINESS REGISTRATION", slug: "business_registration", order: 1, price: 15.0 },
-      { label: "TAX INFORMATION", slug: "tax_information", order: 2, price: 12.0 },
+      { label: "NATIONAL ID (CITIZEN)", slug: "national_id", order: 1, price: 5.0 },
+      { label: "ALIEN ID / WORK PERMIT", slug: "alien_id", order: 2, price: 8.0 },
+      { label: "PASSPORT NUMBER", slug: "passport", order: 3, price: 10.0 },
     ],
   },
   {
@@ -42,61 +41,31 @@ const SERVICE_SEED = [
     icon: "FileText",
     color: "bg-orange-100 text-orange-600",
     order: 3,
+    description: "Tax compliance and PIN validity checker for businesses, companies, and individuals.",
     actions: [
-      { label: "PIN Verification", slug: "pin_verification", order: 1 },
+      { label: "PIN Status & Registration Check", slug: "pin_verification", order: 1 },
     ],
     checkTypes: [
-      { label: "KRA PIN CHECK", slug: "kra_pin_check", order: 1, price: 12.0 },
+      { label: "KRA PIN CHECK (INDIVIDUAL)", slug: "kra_pin_check", order: 1, price: 10.0 },
+      { label: "KRA PIN CHECK (COMPANY / CORPORATE)", slug: "kra_pin_corporate", order: 2, price: 12.0 },
     ],
   },
   {
-    name: "User Registration",
-    slug: "user_registration",
-    icon: "UserPlus",
-    color: "bg-green-100 text-green-600",
-    order: 4,
-    actions: [
-      { label: "SmartSelfie™ Authentication (user registration)", slug: "smart_selfie_registration", order: 1 },
-    ],
-    checkTypes: [],
-  },
-  {
-    name: "AML",
-    slug: "aml",
+    name: "CRB Check",
+    slug: "crb_check",
     icon: "Shield",
     color: "bg-purple-100 text-purple-600",
-    order: 5,
+    order: 4,
+    description: "Credit Reference Bureau listing, score, and default risk report for individuals via ID number.",
     actions: [
-      { label: "AML Check", slug: "aml_check", order: 1 },
+      { label: "Credit Score & Listing Status", slug: "crb_score_check", order: 1 },
     ],
     checkTypes: [
-      { label: "INDIVIDUAL CHECK", slug: "individual", order: 1, price: 25.0 },
-      { label: "BUSINESS CHECK", slug: "business", order: 2, price: 50.0 },
+      { label: "INDIVIDUAL CREDIT REPORT", slug: "crb_check", order: 1, price: 12.0 },
     ],
-  },
-  {
-    name: "Biometric 2nd Factor Authentication",
-    slug: "biometric_2fa",
-    icon: "Fingerprint",
-    color: "bg-red-100 text-red-600",
-    order: 6,
-    actions: [
-      { label: "SmartSelfie™ Authentication (authentication)", slug: "smart_selfie_auth", order: 1 },
-    ],
-    checkTypes: [],
-  },
-  {
-    name: "Address Verification",
-    slug: "address_verification",
-    icon: "MapPin",
-    color: "bg-teal-100 text-teal-600",
-    order: 7,
-    actions: [
-      { label: "Address Verification", slug: "address_verify", order: 1 },
-    ],
-    checkTypes: [],
   },
 ];
+
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
@@ -250,3 +219,79 @@ export const seedServices = mutation({
     return { seeded: true };
   },
 });
+
+/**
+ * Resets and re-seeds all service categories, actions, and check types.
+ */
+export const resetAndSeedServices = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Remove old service categories, actions, and check types
+    const oldCats = await ctx.db.query("serviceCategories").collect();
+    for (const cat of oldCats) {
+      await ctx.db.delete(cat._id);
+    }
+    const oldActs = await ctx.db.query("serviceActions").collect();
+    for (const act of oldActs) {
+      await ctx.db.delete(act._id);
+    }
+    const oldTypes = await ctx.db.query("serviceCheckTypes").collect();
+    for (const t of oldTypes) {
+      await ctx.db.delete(t._id);
+    }
+
+    for (const service of SERVICE_SEED) {
+      const categoryId = await ctx.db.insert("serviceCategories", {
+        name: service.name,
+        slug: service.slug,
+        icon: service.icon,
+        color: service.color,
+        order: service.order,
+        description: service.description,
+        isActive: true,
+      });
+
+      for (const action of service.actions) {
+        await ctx.db.insert("serviceActions", {
+          categoryId,
+          label: action.label,
+          slug: action.slug,
+          enabled: true,
+          order: action.order,
+        });
+      }
+
+      for (const checkType of service.checkTypes) {
+        await ctx.db.insert("serviceCheckTypes", {
+          categoryId,
+          label: checkType.label,
+          slug: checkType.slug,
+          order: checkType.order,
+        });
+
+        const existingPrice = await ctx.db
+          .query("pricing")
+          .withIndex("by_service", (q) => q.eq("serviceId", checkType.slug))
+          .first();
+
+        if (!existingPrice) {
+          await ctx.db.insert("pricing", {
+            serviceCategory: service.slug,
+            serviceId: checkType.slug,
+            serviceName: checkType.label,
+            price: checkType.price,
+            updatedAt: Date.now(),
+          });
+        } else {
+          await ctx.db.patch(existingPrice._id, {
+            price: checkType.price,
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+
+    return { reset: true, count: SERVICE_SEED.length };
+  },
+});
+

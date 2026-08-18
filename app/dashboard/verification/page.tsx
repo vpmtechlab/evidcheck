@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Shield, Sparkles, CheckCircle2, Circle } from "lucide-react";
+import React, { useState, useEffect, Suspense } from "react";
+import { Shield, CheckCircle2 } from "lucide-react";
 import {
 	ChooseService,
 	ServiceType,
@@ -9,28 +9,52 @@ import {
 } from "@/components/dashboard/verification/choose-service";
 import { SelectAction } from "@/components/dashboard/verification/select-action";
 import { FillDetails } from "@/components/dashboard/verification/fill-details";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { motion, AnimatePresence } from "framer-motion";
 
 const steps = [
-	{ id: 1, label: "Choose Service", description: "Select verification type" },
-	{ id: 2, label: "Select Action", description: "Pick specific action" },
-	{ id: 3, label: "Fill Details", description: "Enter user information" },
+	{ id: 1, label: "Choose Service", description: "Select from 4 core channels" },
+	{ id: 2, label: "Select Scope", description: "Choose action depth" },
+	{ id: 3, label: "Verification Query", description: "Enter ID/Number & execute" },
 ];
 
-export default function VerificationPage() {
+function VerificationFlow() {
 	const [currentStep, setCurrentStep] = useState(1);
-	const [selectedService, setSelectedService] = useState<ServiceType | null>(
-		null,
-	);
-	const [selectedAction, setSelectedAction] = useState<ServiceAction | null>(
-		null,
-	);
+	const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
+	const [selectedAction, setSelectedAction] = useState<ServiceAction | null>(null);
 
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const serviceParam = searchParams.get("service");
+
+	const services = useQuery(api.services.list);
+
+	// Auto-select service if passed via URL query parameter (e.g. ?service=business_registration)
+	useEffect(() => {
+		if (serviceParam && services && services.length > 0 && !selectedService) {
+			const matched = services.find((s) => s.slug === serviceParam || s.slug.includes(serviceParam));
+			if (matched) {
+				setSelectedService(matched as ServiceType);
+				if (matched.actions && matched.actions.length === 1) {
+					setSelectedAction(matched.actions[0]);
+					setCurrentStep(3);
+				} else {
+					setCurrentStep(2);
+				}
+			}
+		}
+	}, [serviceParam, services, selectedService]);
 
 	const handleSelectService = (service: ServiceType) => {
 		setSelectedService(service);
-		setCurrentStep(2);
+		if (service.actions && service.actions.length === 1) {
+			setSelectedAction(service.actions[0]);
+			setCurrentStep(3);
+		} else {
+			setCurrentStep(2);
+		}
 	};
 
 	const handleSelectAction = (action: ServiceAction) => {
@@ -39,11 +63,9 @@ export default function VerificationPage() {
 	};
 
 	const handleSubmit = (data: Record<string, unknown>) => {
-		// Navigate to the newly created job
 		if (data.jobId) {
 			router.push(`/dashboard/jobs/view/${data.jobId}`);
 		} else {
-			// Fallback if no jobId (e.g., error case)
 			setCurrentStep(1);
 			setSelectedService(null);
 			setSelectedAction(null);
@@ -69,35 +91,43 @@ export default function VerificationPage() {
 	};
 
 	return (
-		<div className="flex flex-col gap-6 p-2 max-w-5xl mx-auto">
-			{/* Hero Header */}
-			<div className="relative overflow-hidden bg-linear-to-r from-secondary via-secondary/90 to-primary rounded-2xl p-6 md:p-8">
-				<div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-				<div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-
-				<div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-					<div className="flex items-center gap-4">
-						<div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl">
-							<Shield className="text-white" size={28} />
-						</div>
-						<div>
-							<h1 className="text-xl md:text-2xl font-bold text-white">
-								Run a Quick Verification
-							</h1>
-							<p className="text-white/70 text-sm mt-1">
-								Perform identity verification in just 3 simple steps
-							</p>
-						</div>
+		<div className="flex flex-col gap-6 max-w-5xl mx-auto">
+			{/* Top Header Banner */}
+			<motion.div 
+				initial={{ opacity: 0, y: -10 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.3 }}
+				style={{ backgroundColor: "#0e1b42", color: "#ffffff" }}
+				className="p-6 border-b-2 border-[#188015] rounded-lg shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+			>
+				<div className="flex items-center gap-3.5">
+					<div 
+						style={{ backgroundColor: "#188015", color: "#ffffff" }}
+						className="p-2.5 rounded-md shrink-0 shadow-xs"
+					>
+						<Shield size={24} />
 					</div>
-					<div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
-						<Sparkles className="text-yellow-300" size={16} />
-						<span className="text-white text-sm font-medium">SmartVerify™</span>
+					<div>
+						<h1 className="text-lg md:text-xl font-bold tracking-tight text-white">
+							Identity & Compliance Verification
+						</h1>
+						<p className="text-gray-300 text-xs mt-0.5">
+							Direct validation against BRS, IPRS, KRA iTax & CRB Databases
+						</p>
 					</div>
 				</div>
-			</div>
 
-			{/* Horizontal Stepper */}
-			<div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 shadow-sm">
+				<div 
+					style={{ backgroundColor: "rgba(255, 255, 255, 0.12)" }}
+					className="flex items-center gap-2 px-3 py-1 text-xs font-mono font-medium text-white rounded-md shrink-0"
+				>
+					<span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+					<span>4 Core Verification Services</span>
+				</div>
+			</motion.div>
+
+			{/* Stepper Header */}
+			<div className="bg-white border border-gray-200 rounded-lg p-4 shadow-2xs">
 				<div className="flex items-center justify-between">
 					{steps.map((step, index) => {
 						const isActive = step.id === currentStep;
@@ -106,69 +136,57 @@ export default function VerificationPage() {
 
 						return (
 							<React.Fragment key={step.id}>
-								{/* Step */}
 								<div
 									onClick={() => isClickable && handleStepClick(step.id)}
-									className={`flex flex-col md:flex-row items-center gap-3 ${
+									className={`flex items-center gap-3 select-none ${
 										isClickable ? "cursor-pointer" : ""
 									}`}
 								>
-									{/* Step Circle */}
-									<div
+									<motion.div
+										animate={{
+											scale: isActive ? 1.05 : 1,
+										}}
+										transition={{ duration: 0.2 }}
 										className={`
-                      w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center
-                      font-semibold text-sm md:text-base transition-all duration-300
-                      ${
+											w-8 h-8 rounded-md flex items-center justify-center font-mono font-bold text-xs transition-colors
+											${
 												isCompleted
-													? "bg-primary text-white shadow-lg shadow-primary/30"
+													? "bg-[#188015] text-white shadow-xs"
 													: isActive
-														? "bg-secondary text-white shadow-lg shadow-secondary/30 ring-4 ring-secondary/20"
-														: "bg-gray-100 text-gray-400"
+														? "bg-[#0e1b42] text-white border-2 border-[#188015] shadow-xs"
+														: "bg-gray-100 text-gray-500 border border-gray-200"
 											}
-                    `}
+										`}
 									>
-										{isCompleted ? (
-											<CheckCircle2 size={20} />
-										) : isActive ? (
-											<Circle size={20} className="fill-current" />
-										) : (
-											step.id
-										)}
-									</div>
+										{isCompleted ? <CheckCircle2 size={16} /> : step.id}
+									</motion.div>
 
-									{/* Step Info */}
-									<div className="text-center md:text-left">
+									<div className="hidden sm:block">
 										<p
-											className={`text-xs md:text-sm font-semibold ${
+											className={`text-xs font-bold ${
 												isActive
-													? "text-secondary"
+													? "text-gray-900"
 													: isCompleted
-														? "text-primary"
-														: "text-gray-400"
+														? "text-[#188015]"
+														: "text-gray-500"
 											}`}
 										>
 											{step.label}
 										</p>
-										<p className="hidden md:block text-xs text-gray-400">
+										<p className="text-[10px] text-gray-400">
 											{step.description}
 										</p>
 									</div>
 								</div>
 
-								{/* Connector */}
 								{index < steps.length - 1 && (
-									<div className="flex-1 mx-2 md:mx-4">
-										<div className="h-1 rounded-full relative overflow-hidden bg-gray-100">
-											<div
-												className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
-													isCompleted
-														? "bg-primary w-full"
-														: isActive
-															? "bg-secondary/30 w-1/2"
-															: "w-0"
-												}`}
-											/>
-										</div>
+									<div className="flex-1 mx-3 h-0.5 bg-gray-200">
+										<motion.div
+											className="h-full bg-[#188015]"
+											initial={{ width: "0%" }}
+											animate={{ width: isCompleted ? "100%" : "0%" }}
+											transition={{ duration: 0.3 }}
+										/>
 									</div>
 								)}
 							</React.Fragment>
@@ -177,73 +195,66 @@ export default function VerificationPage() {
 				</div>
 			</div>
 
-			{/* Step Content Card */}
-			<div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-				{/* Content Header */}
-				<div className="px-6 py-4 bg-linear-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
-					<div className="flex items-center gap-3">
-						<div
-							className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm ${
-								currentStep === 1
-									? "bg-blue-500"
-									: currentStep === 2
-										? "bg-purple-500"
-										: "bg-green-500"
-							}`}
-						>
-							{currentStep}
-						</div>
-						<div>
-							<h2 className="font-semibold text-gray-900">
-								{steps[currentStep - 1].label}
-							</h2>
-							<p className="text-xs text-gray-500">
-								Step {currentStep} of {steps.length}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				{/* Content Body */}
-				<div className="p-6">
+			{/* Main Step Content with Animated Step Transitions */}
+			<div className="bg-white border border-gray-200 p-6 shadow-2xs rounded-lg overflow-hidden">
+				<AnimatePresence mode="wait">
 					{currentStep === 1 && (
-						<ChooseService onSelectService={handleSelectService} />
+						<motion.div
+							key="step-1"
+							initial={{ opacity: 0, x: -12 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: 12 }}
+							transition={{ duration: 0.2 }}
+						>
+							<ChooseService
+								onSelectService={handleSelectService}
+								selectedSlug={selectedService?.slug}
+							/>
+						</motion.div>
 					)}
 
 					{currentStep === 2 && selectedService && (
-						<SelectAction
-							service={selectedService}
-							onSelectAction={handleSelectAction}
-							onGoBack={handleGoBack}
-						/>
+						<motion.div
+							key="step-2"
+							initial={{ opacity: 0, x: -12 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: 12 }}
+							transition={{ duration: 0.2 }}
+						>
+							<SelectAction
+								service={selectedService}
+								onSelectAction={handleSelectAction}
+								onGoBack={handleGoBack}
+							/>
+						</motion.div>
 					)}
 
 					{currentStep === 3 && selectedService && selectedAction && (
-						<FillDetails
-							service={selectedService}
-							action={selectedAction}
-							onSubmit={handleSubmit}
-							onGoBack={handleGoBack}
-						/>
+						<motion.div
+							key="step-3"
+							initial={{ opacity: 0, x: -12 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: 12 }}
+							transition={{ duration: 0.2 }}
+						>
+							<FillDetails
+								service={selectedService}
+								action={selectedAction}
+								onSubmit={handleSubmit}
+								onGoBack={handleGoBack}
+							/>
+						</motion.div>
 					)}
-				</div>
-			</div>
-
-			{/* Progress Indicator */}
-			<div className="flex items-center justify-center gap-2">
-				{steps.map((step) => (
-					<div
-						key={step.id}
-						className={`h-1.5 rounded-full transition-all duration-300 ${
-							step.id === currentStep
-								? "w-8 bg-secondary"
-								: step.id < currentStep
-									? "w-4 bg-primary"
-									: "w-4 bg-gray-200"
-						}`}
-					/>
-				))}
+				</AnimatePresence>
 			</div>
 		</div>
+	);
+}
+
+export default function VerificationPage() {
+	return (
+		<Suspense fallback={<div className="p-8 text-center text-xs text-gray-400">Loading verification suite...</div>}>
+			<VerificationFlow />
+		</Suspense>
 	);
 }

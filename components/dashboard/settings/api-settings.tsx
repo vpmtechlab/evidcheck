@@ -81,16 +81,16 @@ export function ApiSettings() {
         </p>
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-2xs">
         <div className="flex items-start gap-4 mb-4">
-          <div className="p-2 bg-purple-50 rounded-lg shrink-0">
-            <div className="w-6 h-6 rounded-full border-2 border-purple-500 flex items-center justify-center text-xs font-bold text-purple-600">
+          <div className="p-2 bg-purple-50 rounded-md shrink-0 border border-purple-200">
+            <div className="w-6 h-6 rounded-md border border-purple-500 flex items-center justify-center text-xs font-bold text-purple-600 font-mono">
               K
             </div>
           </div>
           <div>
             <h3 className="font-bold text-gray-900">Secret Key</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs text-gray-500 mt-0.5">
               Use this key to authenticate your server-side API requests. Keep
               it secret and never share it in client-side code.
             </p>
@@ -99,7 +99,7 @@ export function ApiSettings() {
 
         {/* Key Display */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 font-mono text-sm text-gray-700 relative group transition-colors hover:border-gray-300">
+          <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-700 relative group transition-colors hover:border-gray-300">
             <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
               {showApiKey ? displayKey : "api_live_••••••••••••••••••••••••"}
             </span>
@@ -125,33 +125,33 @@ export function ApiSettings() {
         </div>
 
         {newKey && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700 font-medium">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-700 font-medium">
             IMPORTANT: Copy your new key now. You won&apos;t be able to see it again!
           </div>
         )}
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 font-mono">
             {activeKey ? `Created on ${new Date(activeKey.createdAt).toLocaleDateString()}` : "No active keys"}
           </p>
           <Button
             variant="ghost"
             onClick={handleRegenerateKey}
             disabled={loading}
-            className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors w-full sm:w-auto"
+            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors w-full sm:w-auto rounded-md border border-red-200 text-xs font-semibold h-8"
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
             Roll Key
           </Button>
         </div>
       </div>
 
       {/* Info Box */}
-      <div className="flex gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-800">
-        <AlertCircle className="shrink-0" size={20} />
-        <div className="text-sm">
-          <p className="font-semibold mb-1">Security Best Practices</p>
-          <ul className="list-disc list-inside space-y-1 opacity-90">
+      <div className="flex gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+        <AlertCircle className="shrink-0 text-amber-700" size={18} />
+        <div>
+          <p className="font-bold mb-1">Security Best Practices</p>
+          <ul className="list-disc list-inside space-y-0.5 text-amber-800">
             <li>Rotate your keys periodically (e.g. every 90 days)</li>
             <li>Review usage logs regularly for suspicious activity</li>
             <li>Immediately roll your key if you suspect it has been compromised</li>
