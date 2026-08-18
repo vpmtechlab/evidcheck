@@ -26,6 +26,22 @@
 				"description": "Triggers a new verification job and returns the full result immediately."
 			},
 			"response": []
+		},
+		{
+			"name": "Retrieve Verification Result",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "X-API-KEY", "value": "{{apiKey}}", "type": "text" }
+				],
+				"url": {
+					"raw": "{{baseUrl}}/verifications/{{jobId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["verifications", "{{jobId}}"]
+				},
+				"description": "Retrieves the verification result and status payload for a specific jobId."
+			},
+			"response": []
 		}
 	],
 	"event": [

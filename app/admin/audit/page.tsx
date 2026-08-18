@@ -15,83 +15,85 @@ export default function AdminAuditPage() {
   );
 
   return (
-    <div className="p-4 space-y-12 min-h-screen bg-gray-50/20">
+    <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-10 border-b border-gray-100">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-             <div className="p-3 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20">
-                <ShieldCheck size={24} />
-             </div>
-             <div>
-                <h1 className="text-5xl font-black text-gray-900 tracking-tighter leading-none">
-                   Platform Governance
-                </h1>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.3em] mt-2">Global System Audit Trail</p>
-             </div>
-          </div>
-          <p className="text-gray-500 font-medium max-w-xl">
-             Monitoring every configuration change, administrative override, and high-level platform event across all tenant organizations.
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-200">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Platform Governance & Audit Trail
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Immutable log of all configuration changes, administrative overrides, and high-level platform events.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-end lg:self-auto">
-           <Button variant="outline" className="rounded-2xl px-6 font-bold text-xs gap-2 shadow-sm uppercase tracking-widest h-12">
-              <Filter size={16} /> Filter Results
+        <div className="flex items-center gap-2">
+           <Button 
+             variant="outline" 
+             size="sm"
+             className="rounded-md px-3 text-xs font-semibold gap-1.5 h-8 border-gray-300 text-gray-700 hover:bg-gray-50"
+           >
+              <Filter size={13} /> Filter
            </Button>
-           <Button className="rounded-2xl px-6 font-bold text-xs gap-2 shadow-xl uppercase tracking-widest h-12 bg-gray-900 text-white hover:bg-black transition-all">
-              <Download size={16} /> Export Logs
+           <Button 
+             size="sm"
+             className="rounded-md px-3 text-xs font-semibold gap-1.5 h-8 bg-[#0e1b42] text-white hover:bg-[#172758] shadow-xs"
+           >
+              <Download size={13} /> Export Logs
            </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
          {/* Stats Sidebar */}
-         <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-6">
+         <div className="lg:col-span-1 space-y-4">
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-2xs space-y-4">
                <div>
-                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">Audit Strength</h3>
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-1.5">Audit Integrity</h3>
                   <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                     <div className="h-full w-[95%] bg-primary rounded-full transition-all duration-1000" />
+                     <div className="h-full w-[98%] bg-[#188015] rounded-full transition-all duration-1000" />
                   </div>
                </div>
                
-               <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Platform Hits</p>
-                     <p className="text-2xl font-black text-gray-900 tracking-tighter">{logs?.length || "--"}</p>
+               <div className="space-y-2 pt-1 border-t border-gray-100">
+                  <div className="p-3 bg-gray-50 rounded-md border border-gray-100">
+                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Total Captured Events</p>
+                     <p className="text-xl font-bold text-gray-900 font-mono tracking-tight">{logs?.length || "--"}</p>
                   </div>
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-emerald-900">
-                     <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Log Status</p>
-                     <p className="text-xl font-black tracking-tighter flex items-center gap-2">
-                        <Activity size={16} className="animate-pulse" />
-                        Healthy
+                  <div className="p-3 bg-green-50 rounded-md border border-green-200 text-green-900">
+                     <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-0.5">Stream Health</p>
+                     <p className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                        <Activity size={14} className="text-green-600 animate-pulse" />
+                        Operational
                      </p>
                   </div>
                </div>
 
-               <p className="text-[10px] text-gray-400 font-bold leading-relaxed">
-                  Platform audits are tamper-proof and cryptographically verified. Deletions are strictly prohibited by protocol.
+               <p className="text-[11px] text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
+                  All audit entries are tamper-evident and cryptographically retained in compliance with Kenya Data Protection Act standards.
                </p>
             </div>
          </div>
 
          {/* Main Audit Feed */}
-         <div className="lg:col-span-3 space-y-8">
-            <AuditFeed 
-               logs={logs} 
-               title="Platform Interactions" 
-               showCompany={true} 
-            />
+         <div className="lg:col-span-3 space-y-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-2xs">
+              <AuditFeed 
+                 logs={logs} 
+                 title="Platform Interactions" 
+                 showCompany={true} 
+              />
+            </div>
             
             {/* Pagination Controls */}
             {status !== "Exhausted" && (
-               <div className="flex justify-center pt-4">
+               <div className="flex justify-center pt-2">
                   <Button
                      onClick={() => loadMore(10)}
                      disabled={status === "LoadingMore"}
                      variant="outline"
-                     className="rounded-[2rem] px-12 py-6 font-black uppercase tracking-[0.2em] text-[10px] border-2 border-gray-100 hover:border-primary hover:text-primary transition-all shadow-sm disabled:opacity-50"
+                     size="sm"
+                     className="rounded-md px-6 text-xs font-semibold border-gray-300 hover:bg-gray-50 text-gray-700 h-8"
                   >
                      {status === "LoadingMore" ? "Synchronizing..." : "Load More Activity"}
                   </Button>
@@ -99,7 +101,7 @@ export default function AdminAuditPage() {
             )}
 
             {status === "Exhausted" && logs.length > 0 && (
-               <p className="text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] pt-4">
+               <p className="text-center text-xs font-mono text-gray-400 pt-2">
                   End of Audit Trail
                </p>
             )}

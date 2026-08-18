@@ -23,8 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function ReportsAdminPage() {
+  const router = useRouter();
   const [dateRange, setDateRange] = useState("30");
   const [isExporting, setIsExporting] = useState(false);
 
@@ -45,50 +47,39 @@ export default function ReportsAdminPage() {
     setTimeout(() => {
       setIsExporting(false);
       toast.success("Platform-wide CSV export initiated.");
-    }, 2000);
+    }, 1500);
   };
 
   if (jobs === undefined) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen space-y-4">
-        <div className="relative">
-           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-           <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                 <Activity size={12} className="text-primary animate-pulse" />
-              </div>
-           </div>
-        </div>
-        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">
-           Hydrating Global Data...
+      <div className="flex flex-col justify-center items-center h-64 space-y-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[#188015]" />
+        <p className="text-xs font-semibold text-gray-500 font-mono">
+           Loading Global Analytics...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-10 overflow-hidden">
+    <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">Super Admin</span>
-             <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
-               Global Analytics
-             </h1>
-          </div>
-          <p className="text-gray-500 text-sm font-medium flex items-center gap-2">
-            <Calendar size={14} className="text-primary" />
-            Monitoring platform performance and client activity across all accounts.
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-200">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Global Analytics & Reports
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Cross-tenant performance, financial aggregates, and real-time transaction activity.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-4 py-2 shadow-sm">
-             <Filter size={14} className="text-gray-400" />
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Range:</span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-md px-2.5 py-1 shadow-2xs">
+             <Filter size={13} className="text-gray-400" />
+             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Range:</span>
              <Select value={dateRange} onValueChange={(v) => setDateRange(v ?? "30")}>
-               <SelectTrigger className="border-none bg-transparent h-7 font-black text-gray-900 focus:ring-0 min-w-[120px]">
+               <SelectTrigger className="border-none bg-transparent h-6 text-xs font-bold text-gray-900 focus:ring-0 min-w-[100px] shadow-none">
                  <SelectValue placeholder="Period" />
                </SelectTrigger>
                <SelectContent>
@@ -103,10 +94,10 @@ export default function ReportsAdminPage() {
           <Button 
              onClick={handleExport}
              disabled={isExporting}
-             className="gap-2 bg-primary text-white hover:bg-[#146c11] px-6 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95"
+             className="gap-1.5 bg-[#188015] text-white hover:bg-[#136610] h-8 px-3 text-xs font-semibold rounded-md shadow-xs"
           >
-             <Download size={18} /> 
-             <span className="font-bold">{isExporting ? "Exporting..." : "Export CSV"}</span>
+             <Download size={13} /> 
+             <span>{isExporting ? "Exporting..." : "Export CSV"}</span>
           </Button>
         </div>
       </div>
@@ -117,67 +108,67 @@ export default function ReportsAdminPage() {
       <AdminChartsSection analytics={analytics} />
 
       {/* Global Activity Table */}
-      <div className="bg-white border text-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border-gray-100">
-        <div className="p-8 border-b bg-linear-to-r from-gray-50 to-white flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+        <div className="p-4 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
            <div>
-              <h2 className="font-black text-gray-900 text-xl tracking-tight flex items-center gap-2">
-                 Recent Platform Activity
-                 <ArrowUpRight size={16} className="text-gray-300" />
+              <h2 className="font-bold text-gray-900 text-sm tracking-tight flex items-center gap-1.5">
+                 Recent Platform Transactions
+                 <ArrowUpRight size={14} className="text-gray-400" />
               </h2>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Live Feed • Paginated Access</p>
+              <p className="text-[11px] text-gray-500 font-mono mt-0.5">Live Verification Feed across all companies</p>
            </div>
-           <Button variant="ghost" className="text-xs font-bold text-primary hover:bg-primary/5 uppercase tracking-widest px-4">
+           <Button 
+             variant="outline" 
+             size="sm"
+             onClick={() => router.push("/admin/audit")}
+             className="text-xs font-semibold text-gray-700 h-7 px-2.5 rounded-md border-gray-300 hover:bg-gray-100"
+           >
               View Audit Log
            </Button>
         </div>
         
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-gray-50/50">
+            <TableHeader className="bg-gray-50/50 border-b border-gray-200">
               <TableRow>
-                <TableHead className="font-bold text-[10px] text-gray-400 uppercase tracking-widest py-5">Company</TableHead>
-                <TableHead className="font-bold text-[10px] text-gray-400 uppercase tracking-widest text-center">Service</TableHead>
-                <TableHead className="font-bold text-[10px] text-gray-400 uppercase tracking-widest text-center">Outcome</TableHead>
-                <TableHead className="font-bold text-[10px] text-gray-400 uppercase tracking-widest text-right">Fee</TableHead>
-                <TableHead className="font-bold text-[10px] text-gray-400 uppercase tracking-widest text-right pr-8">Timestamp</TableHead>
+                <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider py-3 pl-4">Company</TableHead>
+                <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-center">Service</TableHead>
+                <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-center">Outcome</TableHead>
+                <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-right">Fee</TableHead>
+                <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-right pr-4">Timestamp</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-gray-50">
+            <TableBody>
               {jobs.map((job) => (
-                <tr key={job._id} className="hover:bg-gray-50/80 transition-colors group">
-                  <TableCell className="py-5 pl-8">
-                     <div className="flex flex-col">
-                        <span className="font-bold text-gray-900 text-sm group-hover:text-primary transition-colors">{job.companyName}</span>
-                     </div>
+                <TableRow key={job._id} className="hover:bg-gray-50/60 transition-colors border-b border-gray-100">
+                  <TableCell className="py-3 pl-4">
+                     <span className="font-bold text-xs text-gray-900">{job.companyName}</span>
                   </TableCell>
-                  <TableCell className="text-center font-mono text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                  <TableCell className="text-center font-mono text-[11px] font-bold text-gray-600 uppercase">
                      {job.serviceType.replace("_", " ")}
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className={`inline-flex items-center px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xs
-                      ${job.resultStatus === "approved" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : 
-                        job.resultStatus === "failed" ? "bg-rose-100 text-rose-800 border border-rose-200" : 
-                        "bg-amber-100 text-amber-800 border border-amber-200"}`}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border
+                      ${job.resultStatus === "approved" ? "bg-green-50 text-green-700 border-green-200" : 
+                        job.resultStatus === "failed" ? "bg-red-50 text-red-700 border-red-200" : 
+                        "bg-amber-50 text-amber-700 border-amber-200"}`}
                     >
                       {job.resultStatus.replace(/_/g, " ")}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-black text-gray-900 tabular-nums">
+                  <TableCell className="text-right font-mono font-bold text-xs text-gray-900">
                     ${job.feesCharged?.toFixed(2) || "0.00"}
                   </TableCell>
-                  <TableCell className="text-right text-gray-500 font-bold text-[10px] tabular-nums pr-8">
+                  <TableCell className="text-right text-gray-500 font-mono text-[11px] pr-4">
                     {new Date(job.createdAt).toLocaleDateString('en-GB')} {new Date(job.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </TableCell>
-                </tr>
+                </TableRow>
               ))}
               
               {jobs.length === 0 && status !== "LoadingMore" && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20">
-                    <div className="flex flex-col items-center gap-3 opacity-20">
-                       <Activity size={40} />
-                       <p className="font-black uppercase tracking-widest text-sm">No transaction frequency detected.</p>
-                    </div>
+                  <TableCell colSpan={5} className="text-center py-12 text-xs text-gray-500 font-medium">
+                     No transactions recorded in this timeframe.
                   </TableCell>
                 </TableRow>
               )}
@@ -186,9 +177,9 @@ export default function ReportsAdminPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
-           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              {status === "LoadingMore" ? "Fetching more entries..." : 
+        <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+           <p className="text-[11px] font-mono text-gray-500">
+              {status === "LoadingMore" ? "Fetching more records..." : 
                status === "Exhausted" ? "End of platform history" : 
                `Showing latest ${jobs.length} transactions`}
            </p>
@@ -198,9 +189,10 @@ export default function ReportsAdminPage() {
                onClick={() => loadMore(10)}
                disabled={status === "LoadingMore"}
                variant="outline"
-               className="text-xs font-black uppercase tracking-widest px-8 rounded-xl border-gray-200 hover:border-primary hover:text-primary transition-all disabled:opacity-50"
+               size="sm"
+               className="text-xs font-semibold h-7 px-3 rounded-md border-gray-300 hover:bg-gray-100"
              >
-               {status === "LoadingMore" ? "Loading..." : "Load More Activity"}
+               {status === "LoadingMore" ? "Loading..." : "Load More"}
              </Button>
            )}
         </div>

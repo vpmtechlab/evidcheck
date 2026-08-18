@@ -18,6 +18,7 @@ import {
 	InputOTPSlot 
 } from "@/components/ui/input-otp";
 import { getErrorMessage } from "@/lib/utils";
+import { setSessionCookie } from "@/lib/session-cookie";
 
 interface LoginResponse {
 	userId: string;
@@ -95,7 +96,16 @@ export function LoginForm() {
 	};
 
 	const completeLogin = (result: LoginResponse) => {
-		// Simple local auth state persistence for MVP
+		// Set cookie for Next.js edge middleware
+		setSessionCookie({
+			userId: result.userId,
+			companyId: result.companyId,
+			role: result.role,
+			email: result.email,
+			isSuperAdmin: result.email.includes("@vpmtechlab.com") || result.role === "superadmin",
+		});
+
+		// Local auth state persistence
 		localStorage.setItem("userId", result.userId);
 		localStorage.setItem("companyId", result.companyId);
 		const memberInfo: Member = {
