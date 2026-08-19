@@ -4,7 +4,7 @@ import { recordAuditLog } from "./audit";
 
 /**
  * List all active API keys for a company.
- * Note: Only shows the masked key or name for security.
+ * Returns mode (live vs test), name, keyHash, createdAt.
  */
 export const list = query({
   args: { companyId: v.id("companies") },
@@ -18,25 +18,26 @@ export const list = query({
 });
 
 /**
- * Generate a new API key for the company.
- * Returns the raw key string ONLY ONCE.
+ * Generate a new API key (Live or Test mode) for the company.
  */
 export const generate = mutation({
   args: {
     companyId: v.id("companies"),
-    name: v.string(), // e.g. "Live Production Key"
+    name: v.string(), // e.g. "Live Production Key", "Sandbox Test Key"
+    mode: v.optional(v.string()), // "live" or "test"
     userId: v.id("users"), // who generated it
   },
   handler: async (ctx, args) => {
-    // Generate a secure random string
-    const rawKey = "api_live_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    
-    // In a real app, we would hash this. For now, we'll store it as is or a simple hash.
-    // Let's store the hash in 'keyHash' as per schema.
+    const mode = args.mode === "test" ? "test" : "live";
+    const prefix = mode === "test" ? "evid_test_sk_" : "evid_live_sk_";
+    const randomHash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const rawKey = `${prefix}${randomHash}`;
+
     const apiKeyId = await ctx.db.insert("apiKeys", {
       companyId: args.companyId,
       name: args.name,
-      keyHash: rawKey, // Simplified: storing the key itself for this phase, but treating as a 'hash'
+      keyHash: rawKey,
+      mode: mode,
       isActive: true,
       createdAt: Date.now(),
     });
@@ -47,10 +48,10 @@ export const generate = mutation({
       action: "API_KEY_GENERATED",
       entityId: apiKeyId,
       entityType: "apiKey",
-      details: `Generated new API key: ${args.name}`,
+      details: `Generated new ${mode.toUpperCase()} API key: ${args.name}`,
     });
 
-    return { id: apiKeyId, rawKey };
+    return { id: apiKeyId, rawKey, mode };
   },
 });
 

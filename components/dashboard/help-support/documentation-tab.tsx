@@ -33,7 +33,7 @@ export function DocumentationTab() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-gray-900 tracking-tight">Documentation Center</h2>
-        <p className="text-sm text-gray-500">Guides and resources to help you integrate TrustCert into your workflow.</p>
+        <p className="text-sm text-gray-500">Guides and resources to help you integrate EvidCheck into your workflow.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

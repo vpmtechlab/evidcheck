@@ -17,15 +17,15 @@ const services: ServiceOption[] = [
   {
     id: "business_registration",
     label: "Business Registration Check",
-    description: "Verify business & company registration via BRS Kenya",
+    description: "Verify business & company registration status via BRS Kenya",
     icon: Building2,
     href: "/dashboard/verification?service=business_registration",
     category: "Businesses & Companies",
   },
   {
     id: "national_id",
-    label: "National ID Check",
-    description: "Verify individuals via IPRS Government ID",
+    label: "Individual Document Verification",
+    description: "Verify individuals via National ID, Alien ID, or Passport (IPRS)",
     icon: UserCheck,
     href: "/dashboard/verification?service=national_id",
     category: "Individuals",
@@ -33,15 +33,15 @@ const services: ServiceOption[] = [
   {
     id: "kra",
     label: "KRA PIN Checker",
-    description: "Verify KRA iTax status, taxpayer type & compliance",
+    description: "Verify KRA iTax status, taxpayer type & tax compliance (TCC)",
     icon: FileText,
     href: "/dashboard/verification?service=kra",
-    category: "Businesses & Companies",
+    category: "Businesses & Individuals",
   },
   {
     id: "crb_check",
     label: "CRB Check",
-    description: "Credit bureau check via Metropol / TransUnion",
+    description: "Credit bureau score & listing history via ID number (Metropol / TransUnion)",
     icon: Shield,
     href: "/dashboard/verification?service=crb_check",
     category: "Individuals",
@@ -126,12 +126,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-xs transition-opacity"
         onClick={() => onOpenChange(false)}
       />
 
       {/* Palette Container */}
-      <div className="fixed inset-0 z-[101] flex items-start justify-center pt-[15vh]">
+      <div className="fixed inset-0 z-[101] flex items-start justify-center pt-[12vh] sm:pt-[15vh]">
         <div
           className="w-full max-w-[520px] mx-4 bg-white rounded-xl border border-gray-200 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
           onClick={(e) => e.stopPropagation()}

@@ -4,7 +4,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "@/components/providers/app-provider";
 import { IoChevronDown, IoMenu } from "react-icons/io5";
 import { usePathname, useRouter } from "next/navigation";
-import { User, Shield, CreditCard, Sparkles, RefreshCw, Search } from "lucide-react";
+import { User, Shield, CreditCard, Video, RefreshCw, Search } from "lucide-react";
 import { CommandPalette } from "./command-palette";
 import { Button } from "@/components/ui/button";
 import { NotificationDropdown } from "./notification-dropdown";
@@ -138,7 +138,7 @@ export function Topbar() {
 					onClick={() => window.startAppTour?.()}
 					className="hidden md:flex items-center gap-1.5 h-8 px-2.5 border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 rounded-md shadow-2xs"
 				>
-					<Sparkles size={13} className="text-yellow-600" />
+					<Video size={13} className="text-yellow-600" />
 					<span>Tour</span>
 				</Button>
 

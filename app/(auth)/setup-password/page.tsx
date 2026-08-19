@@ -124,7 +124,7 @@ function SetupPasswordForm() {
 				<div className="relative w-10 h-10 flex items-center justify-center bg-teal-50 rounded-xl">
 					<ShieldCheck className="w-6 h-6 text-teal-600" />
 				</div>
-				<span className="text-2xl font-bold text-[#023e4a]">TrustCert</span>
+				<span className="text-2xl font-bold text-[#188015]">EvidCheck</span>
 			</div>
 
 			<div className="text-center mb-8">

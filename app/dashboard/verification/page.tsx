@@ -6,9 +6,9 @@ import {
 	ChooseService,
 	ServiceType,
 	ServiceAction,
-} from "@/components/dashboard/verification/choose-service";
-import { SelectAction } from "@/components/dashboard/verification/select-action";
-import { FillDetails } from "@/components/dashboard/verification/fill-details";
+} from "./components/choose-service";
+import { SelectAction } from "./components/select-action";
+import { FillDetails } from "./components/fill-details";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -33,28 +33,34 @@ function VerificationFlow() {
 
 	// Auto-select service if passed via URL query parameter (e.g. ?service=business_registration)
 	useEffect(() => {
-		if (serviceParam && services && services.length > 0 && !selectedService) {
-			const matched = services.find((s) => s.slug === serviceParam || s.slug.includes(serviceParam));
+		if (serviceParam && services && services.length > 0) {
+			const matched = services.find(
+				(s) => s.slug === serviceParam || s.slug.includes(serviceParam)
+			);
 			if (matched) {
 				setSelectedService(matched as ServiceType);
-				if (matched.actions && matched.actions.length === 1) {
-					setSelectedAction(matched.actions[0]);
-					setCurrentStep(3);
-				} else {
-					setCurrentStep(2);
-				}
+				const defaultAction = matched.actions?.[0] || {
+					_id: "default_act",
+					label: "Execute Verification Check",
+					slug: matched.slug,
+					enabled: true,
+				};
+				setSelectedAction(defaultAction);
+				setCurrentStep(3);
 			}
 		}
-	}, [serviceParam, services, selectedService]);
+	}, [serviceParam, services]);
 
 	const handleSelectService = (service: ServiceType) => {
 		setSelectedService(service);
-		if (service.actions && service.actions.length === 1) {
-			setSelectedAction(service.actions[0]);
-			setCurrentStep(3);
-		} else {
-			setCurrentStep(2);
-		}
+		const defaultAction = service.actions?.[0] || {
+			_id: "default_act",
+			label: "Execute Verification Check",
+			slug: service.slug,
+			enabled: true,
+		};
+		setSelectedAction(defaultAction);
+		setCurrentStep(3);
 	};
 
 	const handleSelectAction = (action: ServiceAction) => {

@@ -160,7 +160,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
 				password,
 			});
 
-			toast.success("Account created successfully! Welcome to TrustCert.");
+			toast.success("Account created successfully! Welcome to EvidCheck.");
 			
 			// Clear state
 			resetForm();

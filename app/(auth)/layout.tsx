@@ -96,14 +96,24 @@ export default function AuthLayout({
 								className="max-w-lg"
 							>
 								<h1 className="text-4xl font-bold text-white leading-tight mb-4">
-									Welcome to TrustCert
+									Welcome to EvidCheck
 								</h1>
-								<p className="text-teal-100/80 text-lg leading-relaxed">
-									Automate corporate KYC, verify entities globally, and ensure
-									compliance with a platform built for modern financial
-									institutions.
+								<p className="text-[#023e4a]/70 text-sm font-medium leading-relaxed max-w-sm">
+									Verify companies, national IDs, tax compliance, and credit scores with automated speed and regulatory compliance.
 								</p>
 							</motion.div>
+
+							{/* Social proof / testimonial badge */}
+							<div className="pt-6 border-t border-[#023e4a]/10 flex items-center gap-3">
+								<div className="flex -space-x-2">
+									<div className="w-8 h-8 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">JK</div>
+									<div className="w-8 h-8 rounded-full bg-[#023e4a] text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">AO</div>
+									<div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">PM</div>
+								</div>
+								<div className="text-xs text-[#023e4a]/80">
+									<span className="font-bold block text-[#023e4a]">Join 2,000+ companies using EvidCheck.</span>
+								</div>
+							</div>
 
 							{/* Feature Pills */}
 							<motion.div
@@ -139,7 +149,7 @@ export default function AuthLayout({
 										Trusted by Industry Leaders
 									</h3>
 									<p className="mt-1 text-sm text-white/60">
-										Join 2,000+ companies using TrustCert.
+										Join 2,000+ companies using EvidCheck.
 									</p>
 								</div>
 								<div className="flex -space-x-2">
