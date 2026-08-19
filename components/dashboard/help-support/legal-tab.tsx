@@ -35,7 +35,7 @@ export function LegalTab() {
             <h3 className="font-bold text-gray-900">Terms of Service</h3>
           </div>
           <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-            The terms and conditions governing your use of the TrustCert platform. Please review these to understand your rights and responsibilities.
+            The terms and conditions governing your use of the EvidCheck platform. Please review these to understand your rights and responsibilities.
           </p>
           <a href="#" className="text-sm font-medium text-secondary hover:underline">
             Read terms of service

@@ -15,13 +15,13 @@ export default function LoginPage() {
         <div className="relative w-8 h-8 flex items-center justify-center bg-teal-50 rounded-lg">
           <Zap className="w-5 h-5 text-teal-600" />
         </div>
-        <span className="text-xl font-bold text-[#023e4a]">TrustCert</span>
+        <span className="text-xl font-bold text-[#188015]">EvidCheck</span>
       </div>
-      <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">
-        Welcome to TrustCert
+      <h1 className="text-xl font-bold tracking-tight text-gray-900 text-center mb-1">
+        Welcome to EvidCheck
       </h1>
-      <p className="text-center text-sm text-gray-500 mb-6">
-        Start your experience with TrustCert by signing in or signing up.
+      <p className="text-center text-xs text-gray-500 mb-6">
+        Start your experience with EvidCheck by signing in or signing up.
       </p>
 
       {/* Tab Switcher */}

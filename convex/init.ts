@@ -134,6 +134,22 @@ export const seedMockData = mutation({
 export const seedServices = mutation({
   args: {},
   handler: async (ctx) => {
+    // Delete obsolete categories (e.g. AML)
+    const obsoleteCats = await ctx.db
+      .query("serviceCategories")
+      .filter((q) => q.or(q.eq(q.field("slug"), "aml"), q.eq(q.field("slug"), "kyc_old")))
+      .collect();
+    for (const cat of obsoleteCats) {
+      await ctx.db.delete(cat._id);
+    }
+    const obsoletePrices = await ctx.db
+      .query("pricing")
+      .filter((q) => q.eq(q.field("serviceCategory"), "aml"))
+      .collect();
+    for (const p of obsoletePrices) {
+      await ctx.db.delete(p._id);
+    }
+
     for (const service of SERVICE_SEED) {
       // Check if category already exists
       const existing = await ctx.db

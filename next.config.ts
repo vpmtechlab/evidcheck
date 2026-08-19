@@ -4,9 +4,14 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        // Proxies requests to your custom subdomain (v1/*) to the Convex backend
+        // Production API Endpoint Rewrite to Convex HTTP router
         source: "/v1/:path*",
         destination: "https://pleasant-sparrow-60.convex.site/v1/:path*",
+      },
+      {
+        // Sandbox API Endpoint Rewrite to Convex HTTP router
+        source: "/v1/sandbox/:path*",
+        destination: "https://pleasant-sparrow-60.convex.site/v1/sandbox/:path*",
       },
     ];
   },

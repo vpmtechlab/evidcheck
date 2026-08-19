@@ -24,10 +24,10 @@ export function ContactTab() {
           <h3 className="font-bold text-gray-900">Email Us</h3>
           <p className="text-xs text-gray-500 mt-1 mb-4">Get a response within 24 hours.</p>
           <a
-            href="mailto:support@trustcert.com"
-            className="text-sm font-medium text-secondary hover:underline"
+            href="mailto:support@evidcheck.com"
+            className="text-[#188015] hover:underline font-semibold"
           >
-            support@trustcert.com
+            support@evidcheck.com
           </a>
         </div>
 

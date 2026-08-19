@@ -305,8 +305,8 @@ Return absolutely nothing except the JSON object.`;
 	const docType =
 		serviceType === "passport"
 			? "Passport"
-			: serviceType === "drivers_license"
-				? "Driver's License"
+			: serviceType === "alien_id"
+				? "Alien ID / Work Permit"
 				: "National ID";
 
 	return `You are a National Identity verification engine for ${countryFull}.
@@ -362,15 +362,20 @@ function generateRealisticFallback(
 			taxPin: "P051938271A",
 			verificationStatus: "approved",
 			verificationMessage: "Business registration verified successfully via Registrar of Companies (BRS)",
-			source: "TrustCert Registry Engine",
+			source: "EvidCheck Registry Engine",
 		};
 	}
 
 	if (isCRB) {
-		const name = [entityData.firstName, entityData.lastName ?? entityData.surname].filter(Boolean).join(" ") || "Brian Ouma Odhiambo";
+		const firstName = entityData.firstName || "Brian";
+		const lastName = entityData.lastName || entityData.surname || "Odhiambo";
+		const fullName = [firstName, entityData.middleName, lastName].filter(Boolean).join(" ") || "Brian Ouma Odhiambo";
 		const idNum = entityData.idNumber || "31948201";
 		return {
-			subjectName: name,
+			fullName,
+			firstName,
+			lastName,
+			subjectName: fullName,
 			idNumber: idNum,
 			creditScore: 735,
 			creditRating: "Good",
@@ -385,7 +390,7 @@ function generateRealisticFallback(
 			clearanceCertificateEligible: true,
 			verificationStatus: "approved",
 			verificationMessage: "CRB Credit verification completed — Clean listing with credit score 735/900",
-			source: "TrustCert CRB Engine",
+			source: "EvidCheck CRB Engine",
 		};
 	}
 
@@ -403,7 +408,7 @@ function generateRealisticFallback(
 			lastFilingDate: "2024-06-20",
 			verificationStatus: "approved",
 			verificationMessage: "KRA PIN verified successfully — Tax Obligation Compliant",
-			source: "TrustCert KRA Engine",
+			source: "EvidCheck KRA Engine",
 		};
 	}
 
@@ -426,7 +431,7 @@ function generateRealisticFallback(
 		photoOnFile: true,
 		verificationStatus: "approved",
 		verificationMessage: "National ID verified successfully against IPRS database",
-		source: "TrustCert Identity Engine",
+		source: "EvidCheck Identity Engine",
 	};
 }
 
@@ -488,13 +493,57 @@ async function generateAIPayload(
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export const getVerificationsByCompany = query({
-	args: { companyId: v.id("companies") },
+	args: {
+		companyId: v.id("companies"),
+		source: v.optional(v.union(v.string(), v.array(v.string()))),
+		status: v.optional(v.union(v.string(), v.array(v.string()))),
+		serviceType: v.optional(v.union(v.string(), v.array(v.string()))),
+		startDate: v.optional(v.number()),
+		endDate: v.optional(v.number()),
+		search: v.optional(v.string()),
+	},
 	handler: async (ctx, args) => {
-		const jobs = await ctx.db
+		let jobs = await ctx.db
 			.query("jobs")
 			.withIndex("by_company", (q) => q.eq("companyId", args.companyId))
 			.order("desc")
 			.collect();
+
+		// Normalize filter values to arrays for uniform handling
+		const toArray = (val: string | string[] | undefined): string[] => {
+			if (!val) return [];
+			if (typeof val === "string") return val === "all" ? [] : [val];
+			return val;
+		};
+
+		const sources = toArray(args.source);
+		const statuses = toArray(args.status);
+		const serviceTypes = toArray(args.serviceType);
+
+		if (sources.length > 0) {
+			jobs = jobs.filter((j) => sources.includes(j.source ?? "web"));
+		}
+		if (statuses.length > 0) {
+			jobs = jobs.filter((j) => statuses.includes(j.resultStatus));
+		}
+		if (serviceTypes.length > 0) {
+			jobs = jobs.filter((j) => serviceTypes.includes(j.serviceType));
+		}
+		if (args.startDate) {
+			jobs = jobs.filter((j) => j.createdAt >= args.startDate!);
+		}
+		if (args.endDate) {
+			jobs = jobs.filter((j) => j.createdAt <= args.endDate!);
+		}
+		if (args.search) {
+			const s = args.search.toLowerCase();
+			jobs = jobs.filter(
+				(j) =>
+					j._id.toLowerCase().includes(s) ||
+					j.serviceType.toLowerCase().includes(s) ||
+					(j.message && j.message.toLowerCase().includes(s))
+			);
+		}
 
 		// Fetch all check types and categories to perform a join
 		const checkTypes = await ctx.db.query("serviceCheckTypes").collect();
@@ -640,6 +689,7 @@ export const runVerification = action({
 		serviceType: v.string(),
 		entityData: v.any(),
 		source: v.string(),
+		isSandbox: v.optional(v.boolean()),
 	},
 	handler: async (
 		ctx,
@@ -649,18 +699,22 @@ export const runVerification = action({
 		resultStatus: string;
 		data: Record<string, unknown>;
 	}> => {
+		const isSandbox = !!args.isSandbox || args.source === "sandbox";
+
 		// 1. Fetch dynamic price
 		const pricing = await ctx.runQuery(api.pricing.getPriceByServiceId, {
 			serviceId: args.serviceType,
 		});
-		const verificationCost = pricing ? pricing.price : 15.0;
+		const verificationCost = isSandbox ? 0 : pricing ? pricing.price : 15.0;
 
-		// 2. Pre-check Balance
-		const availableBalance = await ctx.runQuery(api.users.getCompanyBalance, {
-			companyId: args.companyId,
-		});
-		if (availableBalance < verificationCost) {
-			throw new ConvexError("Insufficient balance to initiate verification.");
+		// 2. Pre-check Balance (Only for Live production checks)
+		if (!isSandbox) {
+			const availableBalance = await ctx.runQuery(api.users.getCompanyBalance, {
+				companyId: args.companyId,
+			});
+			if (availableBalance < verificationCost) {
+				throw new ConvexError("Insufficient balance to initiate verification.");
+			}
 		}
 
 		// 3. Create Pending Job (Initialize feesCharged as 0)
@@ -723,7 +777,7 @@ export const runVerification = action({
 				if (gavaCode === "23000") {
 					const pinData = (gavaResult.PINDATA as Record<string, unknown>) ?? {};
 					resultStatus = "approved";
-					message = "Official TrustCert verification successful";
+					message = "Official EvidCheck verification successful";
 					finalFeesCharged = verificationCost;
 					aiPayload = {
 						pin: pinData.KRAPIN,
@@ -732,7 +786,7 @@ export const runVerification = action({
 						status: pinData.StatusOfPIN,
 						verificationStatus: "approved",
 						verificationMessage: message,
-						source: "TrustCert Web API",
+						source: "EvidCheck Web API",
 					};
 				} else if (gavaCode === "19005") {
 					// Invalid PIN is a billable check result
@@ -743,7 +797,7 @@ export const runVerification = action({
 						...gavaResult,
 						verificationStatus: "failed",
 						verificationMessage: message,
-						source: "TrustCert Web API",
+						source: "EvidCheck Web API",
 					};
 				} else {
 					// Handle other failures without charging (e.g., system errors)
@@ -754,15 +808,15 @@ export const runVerification = action({
 						...gavaResult,
 						verificationStatus: "failed",
 						verificationMessage: message,
-						source: "TrustCert Web API",
+						source: "EvidCheck Web API",
 					};
 				}
 			} catch (err) {
-				console.error("TrustCert Linkage Failed:", err);
+				console.error("EvidCheck Linkage Failed:", err);
 				resultStatus = "failed";
 				message = err instanceof Error ? err.message : "Service Link Error";
 				finalFeesCharged = 0;
-				aiPayload = { error: message, source: "TrustCert Web API" };
+				aiPayload = { error: message, source: "EvidCheck Web API" };
 			}
 		} else {
 			// For non-Gava services (AI driven), decide if we charge
@@ -772,8 +826,8 @@ export const runVerification = action({
 			}
 		}
 
-		// 6. Deduct Balance IF successful
-		if (finalFeesCharged > 0) {
+		// 6. Deduct Balance IF successful and NOT in Sandbox mode
+		if (!isSandbox && finalFeesCharged > 0) {
 			await ctx.runMutation(api.users.deductBalance, {
 				companyId: args.companyId,
 				amount: finalFeesCharged,
@@ -797,3 +851,41 @@ export const runVerification = action({
 		return { jobId, resultStatus, data: aiPayload };
 	},
 });
+
+/**
+ * Manually terminate/cancel a pending or running verification job.
+ */
+export const cancelJob = mutation({
+	args: {
+		jobId: v.id("jobs"),
+	},
+	handler: async (ctx, args) => {
+		const job = await ctx.db.get(args.jobId);
+		if (!job) {
+			throw new ConvexError("Verification job not found.");
+		}
+
+		if (
+			job.resultStatus === "approved" ||
+			job.resultStatus === "failed" ||
+			job.resultStatus === "cancelled"
+		) {
+			throw new ConvexError("Only pending or running jobs can be terminated.");
+		}
+
+		await ctx.db.patch(args.jobId, {
+			resultStatus: "cancelled",
+			message: "Job terminated by user.",
+		});
+
+		await recordAuditLog(ctx, {
+			companyId: job.companyId,
+			userId: job.userId,
+			action: "job_cancelled",
+			details: `Verification job ${args.jobId} was manually cancelled.`,
+		});
+
+		return { success: true };
+	},
+});
+

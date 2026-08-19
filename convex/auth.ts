@@ -21,7 +21,7 @@ export const generate2FASecret = mutation({
 
     const secret = totp.generateSecret();
     const otpauth = totp.toURI({
-      issuer: "TrustCert",
+      issuer: "EvidCheck",
       label: user.email,
       secret,
     });

@@ -56,6 +56,7 @@ export default defineSchema({
     companyId: v.id("companies"),
     keyHash: v.string(), // Hashed API Key
     name: v.string(), // e.g., 'Live Key', 'Test Key'
+    mode: v.optional(v.string()), // "live" or "test"
     isActive: v.boolean(),
     expiresAt: v.optional(v.number()),
     createdAt: v.number(),

@@ -20,78 +20,55 @@ const TOUR_STEPS: TourStep[] = [
 	{
 		target: "#nav-dashboard",
 		title: "Dashboard Overview",
-		content:
-			"Start here to see a high-level summary of your compliance status and recent activity.",
-		position: "right",
-	},
-	{
-		target: "#user-stats",
-		title: "Performance Metrics",
-		content:
-			"Monitor key performance indicators like total jobs and success rates in real-time.",
-		position: "bottom",
-	},
-	{
-		target: "#nav-analytics",
-		title: "Deep Dive Analytics",
-		content:
-			"Access detailed reports and trends to optimize your verification workflows.",
-		position: "right",
-	},
-	{
-		target: "#nav-job-list",
-		title: "Request Histoy",
-		content:
-			"View and manage all past and current verification requests in one place.",
-		position: "right",
-	},
-	{
-		target: "#nav-user-management",
-		title: "Team Access",
-		content:
-			"Invite team members and manage their roles and permissions securely.",
+		content: "Start here to see a high-level summary of your compliance status and recent activity.",
 		position: "right",
 	},
 	{
 		target: "#nav-verification",
-		title: "Verification Wizard",
-		content:
-			"Start a new KYC or KYB verification using our guided multi-step process.",
+		title: "4 Core Verification Services",
+		content: "Access Business Registration Check, Individual Document Verification (National ID, Alien ID, Passport), KRA PIN Checker, and CRB Check.",
+		position: "right",
+	},
+	{
+		target: "#nav-job-list",
+		title: "Verification Jobs",
+		content: "View, filter, and inspect past verification jobs and JSON audit payloads.",
 		position: "right",
 	},
 	{
 		target: "#nav-reports",
 		title: "Compliance Reports",
-		content:
-			"Generate and export official reports for audits and regulatory requirements.",
+		content: "Generate and export official compliance reports for audits and regulatory requirements.",
+		position: "right",
+	},
+	{
+		target: "#nav-user-management",
+		title: "Team Access",
+		content: "Invite team members and manage organization roles and permissions securely.",
 		position: "right",
 	},
 	{
 		target: "#nav-billing",
 		title: "Wallet & Credits",
-		content:
-			"Top up your balance and view detailed transaction history for all services.",
+		content: "Top up your wallet balance and view detailed transaction history for all services.",
 		position: "right",
 	},
 	{
 		target: "#nav-audit-logs",
-		title: "System Audit",
-		content:
-			"Track all administrative actions for complete transparency and accountability.",
+		title: "System Audit Logs",
+		content: "Track all administrative actions and verification runs for complete transparency.",
 		position: "right",
 	},
 	{
 		target: "#nav-settings",
-		title: "Account Settings",
-		content:
-			"Manage your profile, API keys, and notification preferences here.",
+		title: "API Configuration",
+		content: "Manage API keys, webhooks, and endpoint parameters for custom integrations.",
 		position: "right",
 	},
 	{
 		target: "#header-actions",
-		title: "Quick Controls",
-		content:
-			"Access your profile settings, switch views, or re-run this tour anytime from here.",
+		title: "Quick Controls & Search",
+		content: "Use Ctrl + K to instantly search services, switch views, or re-run this tour anytime from here.",
 		position: "bottom",
 	},
 ];
@@ -117,7 +94,6 @@ export function AppTour() {
 	useEffect(() => {
 		// Automatically start tour for new users who haven't completed it
 		if (member && member.has_completed_tour === false && !isVisible) {
-			// Delay slightly to allow layout to settle
 			const timer = setTimeout(() => {
 				startTour();
 			}, 1500);
@@ -138,7 +114,7 @@ export function AppTour() {
 		const updatePosition = () => {
 			const step = TOUR_STEPS[currentStep];
 			const element = document.querySelector(step.target);
-			if (element) {
+			if (element && element.getBoundingClientRect().width > 0) {
 				const rect = element.getBoundingClientRect();
 				setCoords({
 					top: rect.top + window.scrollY,
@@ -147,6 +123,14 @@ export function AppTour() {
 					height: rect.height,
 				});
 				element.scrollIntoView({ behavior: "smooth", block: "center" });
+			} else {
+				// Fallback to center screen position if element is collapsed or offscreen
+				setCoords({
+					top: window.innerHeight / 2 - 40 + window.scrollY,
+					left: window.innerWidth / 2 - 100 + window.scrollX,
+					width: 200,
+					height: 80,
+				});
 			}
 		};
 
@@ -201,13 +185,13 @@ export function AppTour() {
 
 	return (
 		<AnimatePresence>
-			<div className="fixed inset-0 z-9999 pointer-events-none">
-				{/* Backdrop with hole */}
+			<div className="fixed inset-0 z-[9999] pointer-events-none">
+				{/* Backdrop with spotlight hole */}
 				<motion.div
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					exit={{ opacity: 0 }}
-					className="absolute inset-0 bg-black/60 pointer-events-auto"
+					className="absolute inset-0 bg-black/65 pointer-events-auto"
 					style={{
 						clipPath: `polygon(
               0% 0%, 
@@ -225,46 +209,53 @@ export function AppTour() {
 					onClick={handleSkip}
 				/>
 
-				{/* Tooltip */}
+				{/* Tooltip Card */}
 				<motion.div
 					key={currentStep}
-					initial={{ opacity: 0, scale: 0.9, y: 10 }}
+					initial={{ opacity: 0, scale: 0.92, y: 10 }}
 					animate={{
 						opacity: 1,
 						scale: 1,
 						y: 0,
-						top:
+						top: Math.max(
+							20,
 							step.position === "bottom"
-								? coords.top + coords.height + 20
+								? coords.top + coords.height + 16
 								: step.position === "top"
 									? coords.top - 200
-									: coords.top + coords.height / 2 - 100,
-						left:
-							step.position === "right"
-								? coords.left + coords.width + 20
-								: step.position === "left"
-									? coords.left - 340
-									: coords.left + coords.width / 2 - 160,
+									: coords.top + coords.height / 2 - 100
+						),
+						left: Math.max(
+							16,
+							Math.min(
+								window.innerWidth - 340,
+								step.position === "right"
+									? coords.left + coords.width + 16
+									: step.position === "left"
+										? coords.left - 340
+										: coords.left + coords.width / 2 - 160
+							)
+						),
 					}}
-					className="absolute w-[320px] bg-white rounded-2xl shadow-2xl p-6 pointer-events-auto border border-gray-100"
+					className="absolute w-[320px] max-w-[calc(100vw-32px)] bg-white rounded-xl shadow-2xl p-5 pointer-events-auto border border-gray-200 z-[10000]"
 				>
-					<div className="flex justify-between items-start mb-4">
-						<div className="flex items-center gap-2 text-[#023e4a]">
-							<Milestone size={20} className="text-teal-600" />
-							<span className="text-xs font-bold uppercase tracking-wider">
+					<div className="flex justify-between items-start mb-3">
+						<div className="flex items-center gap-1.5 text-[#188015]">
+							<Milestone size={18} />
+							<span className="text-[11px] font-bold uppercase tracking-wider font-mono">
 								Step {currentStep + 1} of {TOUR_STEPS.length}
 							</span>
 						</div>
 						<button
 							onClick={handleSkip}
-							className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+							className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
 						>
-							<X size={16} />
+							<X size={15} />
 						</button>
 					</div>
 
-					<h3 className="text-lg font-bold text-gray-900 mb-2">{step.title}</h3>
-					<p className="text-sm text-gray-600 leading-relaxed mb-6">
+					<h3 className="text-sm font-bold text-gray-900 mb-1.5">{step.title}</h3>
+					<p className="text-xs text-gray-600 leading-relaxed mb-5">
 						{step.content}
 					</p>
 
@@ -273,7 +264,7 @@ export function AppTour() {
 							variant="ghost"
 							size="sm"
 							onClick={handleSkip}
-							className="text-gray-400 hover:text-gray-600"
+							className="text-xs text-gray-400 hover:text-gray-600 h-8 px-2"
 						>
 							Skip Tour
 						</Button>
@@ -284,42 +275,28 @@ export function AppTour() {
 								size="sm"
 								onClick={prevStep}
 								disabled={currentStep === 0}
-								className="h-9 w-9 p-0 rounded-xl"
+								className="h-8 w-8 p-0 rounded-md"
 							>
-								<ChevronLeft size={18} />
+								<ChevronLeft size={16} />
 							</Button>
 							<Button
 								onClick={nextStep}
-								className="bg-[#023e4a] hover:bg-[#034e5d] text-white rounded-xl h-9 px-4 font-semibold shadow-lg shadow-teal-900/10"
+								className="bg-[#188015] hover:bg-[#136610] text-white rounded-md h-8 px-3.5 text-xs font-semibold shadow-xs"
 							>
 								{currentStep === TOUR_STEPS.length - 1 ? "Finish" : "Next Step"}
 								{currentStep < TOUR_STEPS.length - 1 && (
-									<ChevronRight size={18} className="ml-1" />
+									<ChevronRight size={16} className="ml-1" />
 								)}
 							</Button>
 						</div>
 					</div>
-
-					{/* Arrow */}
-					<div
-						className={`absolute w-4 h-4 bg-white rotate-45 border-gray-100 
-              ${
-								step.position === "bottom"
-									? "-top-2 left-1/2 -translate-x-1/2 border-l border-t"
-									: step.position === "top"
-										? "-bottom-2 left-1/2 -translate-x-1/2 border-r border-b"
-										: step.position === "right"
-											? "top-1/2 -translate-y-1/2 -left-2 border-l border-b"
-											: "top-1/2 -translate-y-1/2 -right-2 border-r border-t"
-							}`}
-					/>
 				</motion.div>
 
 				{/* Pulse effect on target */}
 				<motion.div
-					animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.6, 0.3] }}
+					animate={{ scale: [1, 1.04, 1], opacity: [0.3, 0.7, 0.3] }}
 					transition={{ duration: 2, repeat: Infinity }}
-					className="absolute border-2 border-teal-500 rounded-lg pointer-events-none"
+					className="absolute border-2 border-[#188015] rounded-lg pointer-events-none"
 					style={{
 						top: coords.top - 4,
 						left: coords.left - 4,
