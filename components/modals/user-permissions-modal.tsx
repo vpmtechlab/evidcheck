@@ -106,8 +106,8 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
+      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] !gap-0 !overflow-hidden !p-0 sm:max-w-[550px]">
+        <DialogHeader className="shrink-0 px-4 pt-5 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
             <UserCog className="w-5 h-5 text-[#023e4a]" />
             User Permissions
@@ -117,12 +117,13 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
           </DialogDescription>
         </DialogHeader>
 
-        {rolePermissions === undefined || queryCustomPermissions === undefined ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-          </div>
-        ) : (
-          <div className="space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          {rolePermissions === undefined || queryCustomPermissions === undefined ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-100 rounded-xl">
               <Checkbox
                 id="use-custom"
@@ -140,7 +141,7 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
               </div>
             </div>
 
-            <div className={`grid gap-3 max-h-[300px] overflow-y-auto pr-2 ${!useCustom ? 'opacity-50 pointer-events-none grayscale-[0.5]' : ''}`}>
+            <div className={`grid max-h-[300px] gap-3 overflow-y-auto overscroll-contain pr-2 ${!useCustom ? 'opacity-50 pointer-events-none grayscale-[0.5]' : ''}`}>
               <div className="text-xs font-semibold uppercase text-gray-500 mb-1 ml-1 tracking-wider">
                 {useCustom ? "Select custom permissions:" : `Inheriting from ${user.role} role:`}
               </div>
@@ -177,10 +178,11 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
                 This role currently has no permissions assigned by default.
               </div>
             )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="mx-0 mb-0 mt-0 shrink-0 rounded-b-xl bg-muted/50 px-4 py-4 sm:px-6">
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>

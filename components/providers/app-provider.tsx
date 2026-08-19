@@ -66,6 +66,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 	const viewMode = pathname?.startsWith("/admin") ? "admin" : "dashboard";
 
+	React.useEffect(() => {
+		setSideBarOpen(device !== "sm");
+	}, [device]);
+
 	const persistedUserId =
 		typeof window !== "undefined" ? localStorage.getItem("userId") : null;
 	const hydratedUser = useQuery(

@@ -57,7 +57,7 @@ export function NotificationDropdown() {
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className=" w-80 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="font-bold text-gray-900">Notifications</h3>
           {unreadCount > 0 && (
@@ -73,7 +73,7 @@ export function NotificationDropdown() {
           )}
         </div>
         
-        <div className="h-[350px] overflow-y-auto custom-scrollbar">
+        <div className="h-[350px] overflow-y-auto overflow-x-hidden custom-scrollbar">
 
           {notifications === undefined ? (
             <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>
