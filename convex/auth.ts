@@ -2,6 +2,7 @@ import { mutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from "otplib";
 import { recordAuditLog } from "./audit";
+import { validateSession, issueSession } from "./session";
 
 // Standard "Authenticator" configuration for Google Authenticator / Authy compatibility
 const totp = new TOTP({
@@ -14,8 +15,12 @@ const totp = new TOTP({
  * This is the first step of enabling 2FA.
  */
 export const generate2FASecret = mutation({
-  args: { userId: v.id("users") },
+  args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== args.userId) {
+      throw new ConvexError("Forbidden.");
+    }
     const user = await ctx.db.get(args.userId);
     if (!user) throw new ConvexError("User not found");
 
@@ -34,12 +39,17 @@ export const generate2FASecret = mutation({
  * Verify the first TOTP code and enable 2FA for the user.
  */
 export const verifyAndEnable2FA = mutation({
-  args: { 
-    userId: v.id("users"), 
-    secret: v.string(), 
-    code: v.string() 
+  args: {
+    sessionToken: v.string(),
+    userId: v.id("users"),
+    secret: v.string(),
+    code: v.string()
   },
   handler: async (ctx, args) => {
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== args.userId) {
+      throw new ConvexError("Forbidden.");
+    }
     // IMPORTANT: verify() in v13 returns an object { valid: boolean, ... }
     const result = await totp.verify(args.code, {
       secret: args.secret,
@@ -59,11 +69,25 @@ export const verifyAndEnable2FA = mutation({
 });
 
 /**
- * Disable 2FA for a user.
+ * Disable 2FA for a user. Requires a current TOTP code as proof of possession.
  */
 export const disable2FA = mutation({
-  args: { userId: v.id("users") },
+  args: { sessionToken: v.string(), userId: v.id("users"), code: v.string() },
   handler: async (ctx, args) => {
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== args.userId) {
+      throw new ConvexError("Forbidden.");
+    }
+    const user = await ctx.db.get(args.userId);
+    if (!user?.twoFactorSecret || !user.twoFactorEnabled) {
+      throw new ConvexError("2FA is not enabled");
+    }
+    const result = await totp.verify(args.code, {
+      secret: user.twoFactorSecret,
+    });
+    if (!result.valid) {
+      throw new ConvexError("Invalid Code");
+    }
     await ctx.db.patch(args.userId, {
       twoFactorEnabled: false,
       twoFactorSecret: undefined,
@@ -115,6 +139,7 @@ export const verify2FACode = mutation({
       last_name: user.surname,
       needsPasswordChange: user.needsPasswordChange ?? false,
       has_completed_tour: user.has_completed_tour ?? false,
+      ...(await issueSession(ctx, user)),
     };
   },
 });

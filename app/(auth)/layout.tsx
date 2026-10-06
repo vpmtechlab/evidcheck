@@ -21,10 +21,10 @@ export default function AuthLayout({
 		<div className="min-h-screen w-full flex items-center justify-center p-4 lg:p-8 font-sans overflow-hidden relative">
 			{/* Main Background with Greenish Bluish Gradient and Blur */}
 			<div className="absolute inset-0 bg-linear-to-br from-[#0a192f] via-[#0f2e2e] to-[#0a142f] z-0" />
-			<div className="absolute inset-0 bg-teal-900/20 backdrop-blur-3xl z-0 pointer-events-none" />
+			<div className="absolute inset-0 bg-green-900/20 backdrop-blur-3xl z-0 pointer-events-none" />
 
 			{/* Ambient Blobs for extra 'blurrish' feel */}
-			<div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-teal-500/10 rounded-full blur-[150px] pointer-events-none" />
+			<div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-green-500/10 rounded-full blur-[150px] pointer-events-none" />
 			<div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
 
 			<div className="relative z-10 w-full max-w-[1400px] h-fit md:h-[90vh] md:min-h-[550px] md:max-h-[900px] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col lg:flex-row ring-1 ring-gray-200/50 dark:bg-slate-900 dark:ring-white/10">
@@ -82,7 +82,7 @@ export default function AuthLayout({
 										height={128}
 										className="rounded-full"
 									/>
-									<div className="absolute -bottom-2 -right-2 w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center shadow-lg">
+									<div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shadow-lg">
 										<Zap className="w-4 h-4 text-white" />
 									</div>
 								</div>
@@ -98,22 +98,10 @@ export default function AuthLayout({
 								<h1 className="text-4xl font-bold text-white leading-tight mb-4">
 									Welcome to EvidCheck
 								</h1>
-								<p className="text-[#023e4a]/70 text-sm font-medium leading-relaxed max-w-sm">
+								<p className="text-white/70 text-sm font-medium leading-relaxed max-w-sm">
 									Verify companies, national IDs, tax compliance, and credit scores with automated speed and regulatory compliance.
 								</p>
 							</motion.div>
-
-							{/* Social proof / testimonial badge */}
-							<div className="pt-6 border-t border-[#023e4a]/10 flex items-center gap-3">
-								<div className="flex -space-x-2">
-									<div className="w-8 h-8 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">JK</div>
-									<div className="w-8 h-8 rounded-full bg-[#023e4a] text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">AO</div>
-									<div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center border-2 border-[#e8f3f1]">PM</div>
-								</div>
-								<div className="text-xs text-[#023e4a]/80">
-									<span className="font-bold block text-[#023e4a]">Join 2,000+ companies using EvidCheck.</span>
-								</div>
-							</div>
 
 							{/* Feature Pills */}
 							<motion.div
@@ -127,7 +115,7 @@ export default function AuthLayout({
 										key={index}
 										className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 transition-all hover:bg-white/20"
 									>
-										<feature.icon className="w-4 h-4 text-teal-300" />
+										<feature.icon className="w-4 h-4 text-green-300" />
 										<span className="text-white/90 text-sm font-medium">
 											{feature.label}
 										</span>
@@ -153,12 +141,7 @@ export default function AuthLayout({
 									</p>
 								</div>
 								<div className="flex -space-x-2">
-									{[1, 2, 3].map((i) => (
-										<div
-											key={i}
-											className="h-8 w-8 rounded-full border-2 border-teal-900 bg-gray-300 flex items-center justify-center text-xs font-bold"
-										></div>
-									))}
+									<div className="h-8 w-8 rounded-full border-2 border-white/30 bg-green-600 text-white font-bold text-[10px] flex items-center justify-center">JK</div><div className="h-8 w-8 rounded-full border-2 border-white/30 bg-navy text-white font-bold text-[10px] flex items-center justify-center">AO</div><div className="h-8 w-8 rounded-full border-2 border-white/30 bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">PM</div>
 								</div>
 							</div>
 						</motion.div>

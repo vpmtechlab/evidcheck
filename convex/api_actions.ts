@@ -1,6 +1,6 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 
 /**
@@ -30,7 +30,7 @@ export const verifyAndRun = action({
 		};
 	}> => {
 		// 1. Authenticate API Key
-		const company = await ctx.runQuery(api.users.verifyApiKey, {
+		const company = await ctx.runMutation(internal.users.verifyApiKey, {
 			apiKey: args.apiKey,
 		});
 		if (!company) {
@@ -45,7 +45,7 @@ export const verifyAndRun = action({
 		const isSandbox = args.apiKey.startsWith("evid_test_sk_") || !!args.isSandbox;
 
 		// 2. Find owner admin user for company
-		const users = await ctx.runQuery(api.users.listUsers, {
+		const users = await ctx.runQuery(internal.users.listUsersInternal, {
 			companyId: company._id,
 			role: "admin",
 		});
@@ -61,7 +61,7 @@ export const verifyAndRun = action({
 
 		// 3. Delegate to runVerification
 		try {
-			const result = await ctx.runAction(api.verifications.runVerification, {
+			const result = await ctx.runAction(internal.verifications.runVerificationInternal, {
 				companyId: company._id,
 				userId: ownerId,
 				serviceType: args.serviceType,
@@ -119,7 +119,7 @@ export const getJobResult = action({
 		feesCharged?: number;
 		createdAt?: number;
 	}> => {
-		const company = await ctx.runQuery(api.users.verifyApiKey, {
+		const company = await ctx.runMutation(internal.users.verifyApiKey, {
 			apiKey: args.apiKey,
 		});
 		if (!company) {
@@ -131,7 +131,7 @@ export const getJobResult = action({
 		}
 
 		try {
-			const job = await ctx.runQuery(api.verifications.getVerificationById, {
+			const job = await ctx.runQuery(internal.verifications.getVerificationByIdInternal, {
 				jobId: args.jobId as Id<"jobs">,
 			});
 
@@ -194,7 +194,7 @@ export const listJobs = action({
 			createdAt: number;
 		}>;
 	}> => {
-		const company = await ctx.runQuery(api.users.verifyApiKey, {
+		const company = await ctx.runMutation(internal.users.verifyApiKey, {
 			apiKey: args.apiKey,
 		});
 		if (!company) {
@@ -210,7 +210,7 @@ export const listJobs = action({
 		}
 
 		const allJobs: Array<Doc<"jobs"> & { serviceName?: string }> = await ctx.runQuery(
-			api.verifications.getVerificationsByCompany,
+			internal.verifications.getVerificationsByCompanyInternal,
 			{ companyId: company._id }
 		);
 
@@ -268,7 +268,7 @@ export const getBalance = action({
 		currency?: string;
 		message?: string;
 	}> => {
-		const company = await ctx.runQuery(api.users.verifyApiKey, {
+		const company = await ctx.runMutation(internal.users.verifyApiKey, {
 			apiKey: args.apiKey,
 		});
 		if (!company) {
@@ -279,7 +279,7 @@ export const getBalance = action({
 			};
 		}
 
-		const availableBalance = await ctx.runQuery(api.users.getCompanyBalance, {
+		const availableBalance = await ctx.runQuery(internal.users.getCompanyBalanceInternal, {
 			companyId: company._id,
 		});
 
@@ -323,7 +323,7 @@ export const topUpBalance = action({
 		};
 		instructions?: string;
 	}> => {
-		const company = await ctx.runQuery(api.users.verifyApiKey, {
+		const company = await ctx.runMutation(internal.users.verifyApiKey, {
 			apiKey: args.apiKey,
 		});
 		if (!company) {
@@ -345,7 +345,7 @@ export const topUpBalance = action({
 		const isSandbox = args.apiKey.startsWith("evid_test_sk_");
 
 		// Find owner admin user for company
-		const users = await ctx.runQuery(api.users.listUsers, {
+		const users = await ctx.runQuery(internal.users.listUsersInternal, {
 			companyId: company._id,
 			role: "admin",
 		});
@@ -364,7 +364,7 @@ export const topUpBalance = action({
 		// 1. Live Paystack Transaction Initialization
 		if (paystackSecret && !isSandbox) {
 			try {
-				const paystackRes = await ctx.runAction(api.payments.initializeTransaction, {
+				const paystackRes = await ctx.runAction(internal.payments.initializeTransactionInternal, {
 					amount: args.amount,
 					email: targetEmail,
 					companyId: company._id,
@@ -398,14 +398,14 @@ export const topUpBalance = action({
 
 		// 2. Sandbox / Direct Top-Up Mode
 		const referenceId = `EV_SANDBOX_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-		await ctx.runMutation(api.balances.addFunds, {
+		await ctx.runMutation(internal.balances.addFunds, {
 			companyId: company._id,
 			userId: owner.id,
 			amount: args.amount,
 			referenceId,
 		});
 
-		const newBalance = await ctx.runQuery(api.users.getCompanyBalance, {
+		const newBalance = await ctx.runQuery(internal.users.getCompanyBalanceInternal, {
 			companyId: company._id,
 		});
 

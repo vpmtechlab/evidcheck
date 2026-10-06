@@ -33,7 +33,7 @@ export function DateRangePicker({ dateRange, onChange, className }: DateRangePic
 			<PopoverTrigger
 				className={cn(
 					"inline-flex items-center justify-between gap-1.5 h-9 px-2.5 bg-white border border-gray-200 rounded-md text-xs font-semibold text-gray-700 outline-none hover:border-gray-300 transition-colors cursor-pointer min-w-[160px]",
-					open && "border-[#188015] ring-1 ring-[#188015]/20",
+					open && "border-brand ring-1 ring-brand/20",
 					!dateRange?.from && "text-gray-400",
 					className
 				)}

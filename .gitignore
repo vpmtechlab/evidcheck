@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Self-hosted convex staging (local-only artifacts)
+infra/convex/*.zip
+infra/convex/.env*

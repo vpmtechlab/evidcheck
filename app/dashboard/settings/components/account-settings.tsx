@@ -60,7 +60,7 @@ export function AccountSettings() {
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className="h-9 w-full rounded-lg px-2 text-sm text-gray-500 cursor-pointer hover:text-gray-900 data-active:border-gray-200 data-active:bg-white data-active:text-[#0e1b42] data-active:shadow-sm"
+                  className="h-9 w-full rounded-lg px-2 text-sm text-gray-500 cursor-pointer hover:text-gray-900 data-active:border-gray-200 data-active:bg-white data-active:text-navy data-active:shadow-sm"
                 >
                   <Icon size={16} />
                   <span>{tab.label}</span>
@@ -72,7 +72,7 @@ export function AccountSettings() {
 
         <div className="sm:hidden">
           <Select value={activeTab} onValueChange={handleTabChange}>
-            <SelectTrigger className="h-11 border-gray-200 bg-white text-sm font-semibold text-gray-900 shadow-sm focus-visible:border-[#188015] focus-visible:ring-[#188015]/20">
+            <SelectTrigger className="h-11 border-gray-200 bg-white text-sm font-semibold text-gray-900 shadow-sm focus-visible:border-brand focus-visible:ring-brand/20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-gray-200 bg-white">

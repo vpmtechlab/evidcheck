@@ -25,7 +25,7 @@ export function ContactTab() {
           <p className="text-xs text-gray-500 mt-1 mb-4">Get a response within 24 hours.</p>
           <a
             href="mailto:support@evidcheck.com"
-            className="text-[#188015] hover:underline font-semibold"
+            className="text-brand hover:underline font-semibold"
           >
             support@evidcheck.com
           </a>

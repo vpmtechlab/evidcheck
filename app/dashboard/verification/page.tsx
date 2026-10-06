@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { Shield, CheckCircle2 } from "lucide-react";
 import {
 	ChooseService,
 	ServiceType,
@@ -9,16 +8,32 @@ import {
 } from "./components/choose-service";
 import { SelectAction } from "./components/select-action";
 import { FillDetails } from "./components/fill-details";
+import { VerificationBanner } from "./components/verification-banner";
+import { VerificationStepper, type VerificationStep } from "./components/verification-stepper";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
-const steps = [
+const STEPS_BASE: VerificationStep[] = [
 	{ id: 1, label: "Choose Service", description: "Select from 4 core channels" },
 	{ id: 2, label: "Select Scope", description: "Choose action depth" },
 	{ id: 3, label: "Verification Query", description: "Enter ID/Number & execute" },
 ];
+
+/** The scope step only exists for services with more than one enabled action. */
+function serviceNeedsScope(service: ServiceType | null): boolean {
+	return (service?.actions?.filter((a) => a.enabled).length ?? 0) > 1;
+}
+
+function defaultActionFor(service: ServiceType): ServiceAction {
+	return service.actions?.[0] || {
+		_id: "default_act",
+		label: "Execute Verification Check",
+		slug: service.slug,
+		enabled: true,
+	};
+}
 
 function VerificationFlow() {
 	const [currentStep, setCurrentStep] = useState(1);
@@ -31,36 +46,29 @@ function VerificationFlow() {
 
 	const services = useQuery(api.services.list);
 
-	// Auto-select service if passed via URL query parameter (e.g. ?service=business_registration)
+	// Auto-select service from ?service= deep links. Applies until a service
+	// is chosen (guarding on selectedService rather than a ref, so a reactive
+	// re-fetch of `services` can't cancel the pending update).
 	useEffect(() => {
-		if (serviceParam && services && services.length > 0) {
-			const matched = services.find(
-				(s) => s.slug === serviceParam || s.slug.includes(serviceParam)
-			);
-			if (matched) {
-				setSelectedService(matched as ServiceType);
-				const defaultAction = matched.actions?.[0] || {
-					_id: "default_act",
-					label: "Execute Verification Check",
-					slug: matched.slug,
-					enabled: true,
-				};
-				setSelectedAction(defaultAction);
-				setCurrentStep(3);
-			}
-		}
-	}, [serviceParam, services]);
+		if (!serviceParam || !services || services.length === 0) return;
+		if (selectedService) return;
+		const matched = services.find(
+			(s) => s.slug === serviceParam || s.slug.includes(serviceParam)
+		);
+		if (!matched) return;
+		const matchedService = matched as ServiceType;
+		const timer = setTimeout(() => {
+			setSelectedService(matchedService);
+			setSelectedAction(defaultActionFor(matchedService));
+			setCurrentStep(serviceNeedsScope(matchedService) ? 2 : 3);
+		}, 0);
+		return () => clearTimeout(timer);
+	}, [serviceParam, services, selectedService]);
 
 	const handleSelectService = (service: ServiceType) => {
 		setSelectedService(service);
-		const defaultAction = service.actions?.[0] || {
-			_id: "default_act",
-			label: "Execute Verification Check",
-			slug: service.slug,
-			enabled: true,
-		};
-		setSelectedAction(defaultAction);
-		setCurrentStep(3);
+		setSelectedAction(defaultActionFor(service));
+		setCurrentStep(serviceNeedsScope(service) ? 2 : 3);
 	};
 
 	const handleSelectAction = (action: ServiceAction) => {
@@ -79,137 +87,56 @@ function VerificationFlow() {
 	};
 
 	const handleGoBack = () => {
-		if (currentStep > 1) {
-			setCurrentStep(currentStep - 1);
+		if (currentStep === 3) {
+			if (!serviceNeedsScope(selectedService)) {
+				setSelectedService(null);
+				setSelectedAction(null);
+				setCurrentStep(1);
+			} else {
+				setCurrentStep(2);
+			}
+		} else if (currentStep === 2) {
+			setCurrentStep(1);
 		}
 	};
 
 	const handleStepClick = (stepId: number) => {
-		if (stepId < currentStep) {
-			setCurrentStep(stepId);
-			if (stepId === 1) {
-				setSelectedService(null);
-				setSelectedAction(null);
-			} else if (stepId === 2) {
-				setSelectedAction(null);
-			}
+		if (stepId === 1) {
+			setCurrentStep(1);
+			setSelectedService(null);
+			setSelectedAction(null);
+		} else if (stepId === 2) {
+			setCurrentStep(2);
+			setSelectedAction(null);
 		}
 	};
 
+	const steps =
+		selectedService && !serviceNeedsScope(selectedService)
+			? STEPS_BASE.filter((s) => s.id !== 2)
+			: STEPS_BASE;
+	const stepIndex = Math.max(
+		0,
+		steps.findIndex((s) => s.id === currentStep)
+	);
+
 	return (
 		<div className="flex flex-col gap-6 max-w-5xl mx-auto">
-			{/* Top Header Banner */}
-			<motion.div 
-				initial={{ opacity: 0, y: -10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.3 }}
-				style={{ backgroundColor: "#0e1b42", color: "#ffffff" }}
-				className="p-6 border-b-2 border-[#188015] rounded-lg shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-			>
-				<div className="flex items-center gap-3.5">
-					<div 
-						style={{ backgroundColor: "#188015", color: "#ffffff" }}
-						className="p-2.5 rounded-md shrink-0 shadow-xs"
-					>
-						<Shield size={24} />
-					</div>
-					<div>
-						<h1 className="text-lg md:text-xl font-bold tracking-tight text-white">
-							Identity & Compliance Verification
-						</h1>
-						<p className="text-gray-300 text-xs mt-0.5">
-							Direct validation against BRS, IPRS, KRA iTax & CRB Databases
-						</p>
-					</div>
-				</div>
+			<VerificationBanner />
 
-				<div 
-					style={{ backgroundColor: "rgba(255, 255, 255, 0.12)" }}
-					className="flex items-center gap-2 px-3 py-1 text-xs font-mono font-medium text-white rounded-md shrink-0"
-				>
-					<span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-					<span>4 Core Verification Services</span>
-				</div>
-			</motion.div>
+			<VerificationStepper
+				steps={steps}
+				currentStep={currentStep}
+				stepIndex={stepIndex}
+				onStepClick={handleStepClick}
+			/>
 
-			{/* Stepper Header */}
-			<div className="bg-white border border-gray-200 rounded-lg p-4 shadow-2xs">
-				<div className="flex items-center justify-between">
-					{steps.map((step, index) => {
-						const isActive = step.id === currentStep;
-						const isCompleted = step.id < currentStep;
-						const isClickable = step.id < currentStep;
-
-						return (
-							<React.Fragment key={step.id}>
-								<div
-									onClick={() => isClickable && handleStepClick(step.id)}
-									className={`flex items-center gap-3 select-none ${
-										isClickable ? "cursor-pointer" : ""
-									}`}
-								>
-									<motion.div
-										animate={{
-											scale: isActive ? 1.05 : 1,
-										}}
-										transition={{ duration: 0.2 }}
-										className={`
-											w-8 h-8 rounded-md flex items-center justify-center font-mono font-bold text-xs transition-colors
-											${
-												isCompleted
-													? "bg-[#188015] text-white shadow-xs"
-													: isActive
-														? "bg-[#0e1b42] text-white border-2 border-[#188015] shadow-xs"
-														: "bg-gray-100 text-gray-500 border border-gray-200"
-											}
-										`}
-									>
-										{isCompleted ? <CheckCircle2 size={16} /> : step.id}
-									</motion.div>
-
-									<div className="hidden sm:block">
-										<p
-											className={`text-xs font-bold ${
-												isActive
-													? "text-gray-900"
-													: isCompleted
-														? "text-[#188015]"
-														: "text-gray-500"
-											}`}
-										>
-											{step.label}
-										</p>
-										<p className="text-[10px] text-gray-400">
-											{step.description}
-										</p>
-									</div>
-								</div>
-
-								{index < steps.length - 1 && (
-									<div className="flex-1 mx-3 h-0.5 bg-gray-200">
-										<motion.div
-											className="h-full bg-[#188015]"
-											initial={{ width: "0%" }}
-											animate={{ width: isCompleted ? "100%" : "0%" }}
-											transition={{ duration: 0.3 }}
-										/>
-									</div>
-								)}
-							</React.Fragment>
-						);
-					})}
-				</div>
-			</div>
-
-			{/* Main Step Content with Animated Step Transitions */}
 			<div className="bg-white border border-gray-200 p-6 shadow-2xs rounded-lg overflow-hidden">
-				<AnimatePresence mode="wait">
 					{currentStep === 1 && (
 						<motion.div
 							key="step-1"
 							initial={{ opacity: 0, x: -12 }}
 							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: 12 }}
 							transition={{ duration: 0.2 }}
 						>
 							<ChooseService
@@ -224,10 +151,10 @@ function VerificationFlow() {
 							key="step-2"
 							initial={{ opacity: 0, x: -12 }}
 							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: 12 }}
 							transition={{ duration: 0.2 }}
 						>
 							<SelectAction
+								key={selectedService._id}
 								service={selectedService}
 								onSelectAction={handleSelectAction}
 								onGoBack={handleGoBack}
@@ -240,7 +167,6 @@ function VerificationFlow() {
 							key="step-3"
 							initial={{ opacity: 0, x: -12 }}
 							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: 12 }}
 							transition={{ duration: 0.2 }}
 						>
 							<FillDetails
@@ -251,7 +177,6 @@ function VerificationFlow() {
 							/>
 						</motion.div>
 					)}
-				</AnimatePresence>
 			</div>
 		</div>
 	);

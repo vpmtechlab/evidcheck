@@ -1,8 +1,8 @@
 "use node";
 
 import { action, internalAction } from "./_generated/server";
-import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { v, ConvexError } from "convex/values";
+import { internal } from "./_generated/api";
 import { createHmac } from "crypto";
 
 const USD_TO_KES = 135; // Example rate: 1 USD = 135 KES
@@ -11,7 +11,7 @@ const USD_TO_KES = 135; // Example rate: 1 USD = 135 KES
  * Initializes a Paystack transaction on the backend.
  * Returns an access_code to be used on the frontend.
  */
-export const initializeTransaction = action({
+export const initializeTransactionInternal = internalAction({
   args: {
     amount: v.number(), // Amount in dollars
     email: v.string(),
@@ -93,7 +93,7 @@ export const handleWebhook = internalAction({
       console.log(`Processing successful payment for reference: ${reference}`);
 
       try {
-        await ctx.runMutation(api.balances.addFunds, {
+        await ctx.runMutation(internal.balances.addFunds, {
           companyId: companyId,
           userId: userId,
           amount: Number(displayAmount || amount / 100),
@@ -135,7 +135,7 @@ export const verifyTransaction = action({
     const data = await response.json();
     if (!data.status || data.data.status !== "success") return { success: false };
 
-    await ctx.runMutation(api.balances.addFunds, {
+    await ctx.runMutation(internal.balances.addFunds, {
       companyId: args.companyId,
       userId: args.userId,
       amount: args.amount,
@@ -143,5 +143,43 @@ export const verifyTransaction = action({
     });
 
     return { success: true };
+  },
+});
+
+/**
+ * Public: initialize a Paystack transaction for the caller's own company.
+ * Delegates to the internal action after verifying the session company.
+ */
+export const initializeTransaction = action({
+  args: {
+    sessionToken: v.string(),
+    amount: v.number(),
+    email: v.string(),
+    companyId: v.id("companies"),
+    userId: v.id("users"),
+    callback_url: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    access_code: string;
+    reference: string;
+    publicKey: string | undefined;
+    authorization_url: string;
+  }> => {
+    const session = await ctx.runQuery(internal.session.resolve, {
+      sessionToken: args.sessionToken,
+    });
+    if (session.companyId !== args.companyId || session.userId !== args.userId) {
+      throw new ConvexError("Forbidden.");
+    }
+    return await ctx.runAction(internal.payments.initializeTransactionInternal, {
+      amount: args.amount,
+      email: args.email,
+      companyId: args.companyId,
+      userId: args.userId,
+      callback_url: args.callback_url,
+    });
   },
 });

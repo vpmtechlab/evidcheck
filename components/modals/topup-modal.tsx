@@ -9,32 +9,12 @@ import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useApp } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
+import { getSessionToken } from "@/lib/session-token";
 import { toast } from "sonner";
 
 interface TopUpModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-declare global {
-  interface Window {
-    PaystackPop: {
-      setup: (config: {
-        key: string;
-        email?: string;
-        amount?: number;
-        currency?: string;
-        reference?: string;
-        access_code?: string;
-        metadata?: unknown;
-        callback: (...args: unknown[]) => unknown;
-        onClose: (...args: unknown[]) => unknown;
-        onError?: (...args: unknown[]) => unknown;
-      }) => {
-        openIframe: () => void;
-      };
-    };
-  }
 }
 
 export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
@@ -51,16 +31,12 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
       return;
     }
 
-    if (!window.PaystackPop) {
-      toast.error("Payment gateway is still loading. Please try again in a few seconds.");
-      return;
-    }
-
     setIsSubmitting(true);
     
     try {
       // 1. Initialize on Backend
       const { authorization_url } = await initializeTransaction({
+        sessionToken: getSessionToken() ?? "",
         amount: Number(amount),
         email: member.email || "user@example.com",
         companyId: member.companyId as Id<"companies">,

@@ -109,7 +109,7 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
       <DialogContent className="!flex max-h-[calc(100dvh-2rem)] !gap-0 !overflow-hidden !p-0 sm:max-w-[550px]">
         <DialogHeader className="shrink-0 px-4 pt-5 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
-            <UserCog className="w-5 h-5 text-[#023e4a]" />
+            <UserCog className="w-5 h-5 text-brand" />
             User Permissions
           </DialogTitle>
           <DialogDescription>
@@ -124,18 +124,18 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
             </div>
           ) : (
             <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-100 rounded-xl">
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
               <Checkbox
                 id="use-custom"
                 checked={useCustom}
                 onCheckedChange={handleToggleCustom}
-                className="data-[state=checked]:bg-[#023e4a] border-[#023e4a]"
+                className="data-[state=checked]:bg-brand border-brand"
               />
-              <div className="grid gap-1 leading-none" onClick={() => handleToggleCustom(!useCustom)}>
-                <label htmlFor="use-custom" className="text-sm font-bold text-[#023e4a] cursor-pointer cursor-allowed">
+              <div className="grid gap-1 leading-none">
+                <label htmlFor="use-custom" className="text-sm font-bold text-brand cursor-pointer cursor-allowed">
                   Enable Custom Permissions Override
                 </label>
-                <p className="text-xs text-teal-800">
+                <p className="text-xs text-green-800">
                   If unchecked, the user will inherit the default permissions for their <span className="font-semibold">{user.role}</span> role.
                 </p>
               </div>
@@ -155,9 +155,9 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
                     checked={localPermissions.includes(key)}
                     onCheckedChange={() => handleToggle(key)}
                     disabled={!useCustom}
-                    className="mt-1 border-gray-300 data-[state=checked]:bg-[#023e4a]"
+                    className="mt-1 border-gray-300 data-[state=checked]:bg-brand"
                   />
-                  <div className="grid gap-1.5 leading-none cursor-pointer" onClick={() => handleToggle(key)}>
+                  <div className="grid gap-1.5 leading-none">
                     <label
                       htmlFor={`user-perm-${key}`}
                       className={`text-sm font-semibold cursor-pointer ${!useCustom ? "cursor-default" : ""}`}
@@ -186,7 +186,7 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-[#023e4a] hover:bg-[#034e5d] text-white">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-brand hover:bg-brand-dark text-white">
             {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Permissions"}
           </Button>
         </DialogFooter>

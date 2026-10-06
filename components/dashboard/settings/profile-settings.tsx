@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useContext, useEffect } from "react";
-import { Camera, BadgeCheck, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { BadgeCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +9,7 @@ import { AppContext } from "@/components/providers/app-provider";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { getSessionToken } from "@/lib/session-token";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -50,6 +50,7 @@ export function ProfileSettings() {
     setLoading(true);
     try {
       await updateProfile({
+        sessionToken: getSessionToken() ?? "",
         userId: member.id as Id<"users">,
         firstName: profileData.firstName,
         surname: profileData.lastName,

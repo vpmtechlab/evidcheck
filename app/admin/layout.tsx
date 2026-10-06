@@ -11,7 +11,7 @@ export default function AdminLayout({
       <Aside />
       <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-200 bg-white" style={{ zIndex: 10 }}>
         <Topbar />
-        <main className="w-full flex-1 overflow-y-auto custom-scrollbar bg-white relative p-4 md:p-6">
+        <main className="w-full overflow-y-auto custom-scrollbar bg-white relative p-4 md:p-6">
           {children}
         </main>
       </div>

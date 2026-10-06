@@ -17,7 +17,7 @@ export function DocumentationTab() {
       title: "API Reference",
       description: "Detailed documentation for integrating our verification API into your application.",
       icon: Code,
-      color: "bg-[#023e4a] text-white",
+      color: "bg-brand text-white",
       href: "/dashboard/help/documentation",
     },
     {
@@ -43,7 +43,7 @@ export function DocumentationTab() {
             <Link
               key={index}
               href={doc.href}
-              className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col h-full hover:border-[#023e4a]/20"
+              className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col h-full hover:border-brand/20"
             >
               <div
                 className={`w-10 h-10 ${doc.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm`}
@@ -54,7 +54,7 @@ export function DocumentationTab() {
                 {doc.title}
                 <ExternalLink
                   size={14}
-                  className="text-gray-300 group-hover:text-[#023e4a] opacity-0 group-hover:opacity-100 transition-all font-bold"
+                  className="text-gray-300 group-hover:text-brand opacity-0 group-hover:opacity-100 transition-all font-bold"
                 />
               </h3>
               <p className="text-xs text-gray-500 leading-relaxed">{doc.description}</p>

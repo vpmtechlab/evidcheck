@@ -1,5 +1,7 @@
 "use client";
 
+import { getSessionToken } from "@/lib/session-token";
+
 // Route-level analytics implementation.
 
 import React from "react";
@@ -20,6 +22,7 @@ export default function AnalyticsPage() {
   const { member } = useApp();
   
   const analytics = useQuery(api.analytics.getDashboardAnalytics, member?.companyId ? { 
+    sessionToken: getSessionToken() ?? "",
     companyId: member.companyId as Id<"companies"> 
   } : "skip");
 

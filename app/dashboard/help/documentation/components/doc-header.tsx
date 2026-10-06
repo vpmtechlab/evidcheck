@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BookOpen, ShieldCheck, Terminal, Play, Globe } from "lucide-react";
+import { BookOpen, ShieldCheck, Terminal, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DocHeaderProps {
@@ -11,16 +11,10 @@ interface DocHeaderProps {
 
 export function DocHeader({ activeTab, setActiveTab }: DocHeaderProps) {
   return (
-    <div
-      style={{ backgroundColor: "#0e1b42", color: "#ffffff" }}
-      className="p-6 md:p-8 border-b-2 border-[#188015] rounded-lg shadow-xs space-y-6"
-    >
+    <div className="p-6 md:p-8 bg-navy text-white border-b-2 border-brand rounded-lg shadow-xs space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div
-            style={{ backgroundColor: "#188015", color: "#ffffff" }}
-            className="p-3 rounded-md shrink-0 shadow-xs"
-          >
+          <div className="p-3 rounded-md shrink-0 shadow-xs bg-brand text-white">
             <BookOpen size={26} />
           </div>
           <div>
@@ -28,7 +22,7 @@ export function DocHeader({ activeTab, setActiveTab }: DocHeaderProps) {
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
                 API Documentation & Reference
               </h1>
-              <span className="bg-[#188015]/30 text-green-300 border border-[#188015]/50 px-2 py-0.5 text-[10px] font-bold rounded-md font-mono">
+              <span className="bg-brand/30 text-green-300 border border-brand/50 px-2 py-0.5 text-[10px] font-bold rounded-md font-mono">
                 v1.0 REST
               </span>
             </div>
@@ -44,16 +38,7 @@ export function DocHeader({ activeTab, setActiveTab }: DocHeaderProps) {
             variant={activeTab === "docs" ? "secondary" : "default"}
             size="sm"
             onClick={() => setActiveTab("docs")}
-            style={
-              activeTab === "docs"
-                ? {
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
-                    borderColor: "#ffffff",
-                    color: "#ffffff",
-                  }
-                : { borderColor: "rgba(255, 255, 255, 0.3)", color: "#ffffff" }
-            }
-            className="text-xs font-semibold h-8 rounded-md px-3 border transition-colors flex items-center gap-1.5"
+            className={`text-xs font-semibold h-8 rounded-md px-3 border transition-colors flex items-center gap-1.5 text-white ${activeTab === "docs" ? "bg-white/20 border-white" : "border-white/30"}`}
           >
             <Terminal size={14} />
             Documentation
@@ -62,16 +47,7 @@ export function DocHeader({ activeTab, setActiveTab }: DocHeaderProps) {
             variant={activeTab === "playground" ? "secondary" : "default"}
             size="sm"
             onClick={() => setActiveTab("playground")}
-            style={
-              activeTab === "playground"
-                ? {
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
-                    borderColor: "#ffffff",
-                    color: "#ffffff",
-                  }
-                : { borderColor: "rgba(255, 255, 255, 0.3)", color: "#ffffff" }
-            }
-            className="text-xs font-semibold h-8 rounded-md px-3 border transition-colors flex items-center gap-1.5"
+            className={`text-xs font-semibold h-8 rounded-md px-3 border transition-colors flex items-center gap-1.5 text-white ${activeTab === "playground" ? "bg-white/20 border-white" : "border-white/30"}`}
           >
             <Play size={14} />
             Interactive Tester
