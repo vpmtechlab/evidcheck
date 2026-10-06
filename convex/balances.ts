@@ -1,14 +1,16 @@
-import { query, mutation } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { notifyCompanyUsers } from "./audit";
 import { Doc } from "./_generated/dataModel";
+import { requireCompany } from "./session";
 
 /**
- * Fetch the available balance for a specific company.
+ * Fetch the available balance for a specific company (session-scoped).
  */
 export const getAvailableBalance = query({
-  args: { companyId: v.id("companies") },
+  args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
+    await requireCompany(ctx, args.sessionToken, args.companyId);
     const balance = await ctx.db
       .query("balances")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -19,11 +21,12 @@ export const getAvailableBalance = query({
 });
 
 /**
- * Fetch the full balance document for a specific company.
+ * Fetch the full balance document for a specific company (session-scoped).
  */
 export const get = query({
-  args: { companyId: v.id("companies") },
+  args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
+    await requireCompany(ctx, args.sessionToken, args.companyId);
     const balance = await ctx.db
       .query("balances")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -35,8 +38,10 @@ export const get = query({
 
 /**
  * Add funds to a company balance.
+ * INTERNAL ONLY: called by the payment webhook and REST API after funds are
+ * confirmed. Never exposed to clients directly.
  */
-export const addFunds = mutation({
+export const addFunds = internalMutation({
   args: {
     companyId: v.id("companies"),
     userId: v.id("users"),
@@ -51,7 +56,7 @@ export const addFunds = mutation({
         .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
         .filter((q) => q.eq(q.field("referenceId"), args.referenceId))
         .first();
-      
+
       if (existing) {
         console.warn(`Duplicate transaction attempt: ${args.referenceId}`);
         return false;
@@ -92,8 +97,8 @@ export const addFunds = mutation({
       companyId: args.companyId,
       title: "Funds Added",
       type: "success",
-      getMessage: (user: Doc<"users">) => 
-        user._id === args.userId 
+      getMessage: (user: Doc<"users">) =>
+        user._id === args.userId
           ? `Successfully added $${args.amount.toLocaleString()} to your available balance.`
           : `${performer?.firstName || 'A team member'} added $${args.amount.toLocaleString()} to the company balance.`,
     });

@@ -6,13 +6,14 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AppContext } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
+import { getSessionToken } from "@/lib/session-token";
 
 export function BillingSettings() {
   const { member } = useContext(AppContext);
   const companyId = member?.companyId as Id<"companies">;
   
-  const balanceDoc = useQuery(api.balances.get, companyId ? { companyId } : "skip");
-  const transactions = useQuery(api.transactions.list, companyId ? { companyId } : "skip");
+  const balanceDoc = useQuery(api.balances.get, companyId ? { sessionToken: getSessionToken() ?? "", companyId } : "skip");
+  const transactions = useQuery(api.transactions.list, companyId ? { sessionToken: getSessionToken() ?? "", companyId } : "skip");
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-US", {

@@ -46,9 +46,9 @@ export function AdminMetricsGrid({ analytics }: AdminMetricsGridProps) {
       label: "System Success",
       value: isLoading ? "--" : `${analytics.metrics.successRate}%`,
       trend: "Cross-Platform Avg",
-      icon: <Globe className="text-teal-700" size={16} />,
-      color: "text-teal-700",
-      bgColor: "bg-teal-50"
+      icon: <Globe className="text-green-700" size={16} />,
+      color: "text-green-700",
+      bgColor: "bg-green-50"
     }
   ];
 

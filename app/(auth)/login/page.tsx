@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
-import { Zap } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const [view, setView] = useState<"login" | "register">("login");
@@ -12,10 +12,10 @@ export default function LoginPage() {
     <div className="mb-4 max-md:h-fit">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4 justify-center">
-        <div className="relative w-8 h-8 flex items-center justify-center bg-teal-50 rounded-lg">
-          <Zap className="w-5 h-5 text-teal-600" />
+        <div className="relative w-8 h-8 flex items-center justify-center bg-navy rounded-lg">
+          <ShieldCheck className="w-5 h-5 text-white" />
         </div>
-        <span className="text-xl font-bold text-[#188015]">EvidCheck</span>
+        <span className="text-xl font-bold text-navy">EvidCheck</span>
       </div>
       <h1 className="text-xl font-bold tracking-tight text-gray-900 text-center mb-1">
         Welcome to EvidCheck

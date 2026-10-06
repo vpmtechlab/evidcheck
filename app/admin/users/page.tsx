@@ -12,14 +12,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getSessionToken } from "@/lib/session-token";
 
 export default function UsersAdminPage() {
-  const users = useQuery(api.admin.getAllUsers);
+  const users = useQuery(api.admin.getAllUsers, { sessionToken: getSessionToken() ?? "" });
 
   if (users === undefined) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[#188015]" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -59,7 +60,7 @@ export default function UsersAdminPage() {
               <TableRow key={user._id} className="hover:bg-gray-50/60 transition-colors border-b border-gray-100">
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-[#0e1b42] flex items-center justify-center text-white text-xs font-bold font-mono">
+                    <div className="w-8 h-8 rounded-md bg-navy flex items-center justify-center text-white text-xs font-bold font-mono">
                       {user.firstName[0]}
                     </div>
                     <div>

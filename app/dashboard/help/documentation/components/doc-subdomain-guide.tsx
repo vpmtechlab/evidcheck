@@ -43,9 +43,9 @@ export default nextConfig;`;
 			{/* Subdomain Overview */}
 			<div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 shadow-2xs">
 				<div className="flex items-center gap-2">
-					<Globe size={18} className="text-[#188015]" />
+					<Globe size={18} className="text-brand" />
 					<h2 className="text-base font-bold text-gray-900 tracking-tight">
-						Custom API Subdomain Setup (<code className="font-mono text-[#188015]">api.evidcheck.com/v1</code>)
+						Custom API Subdomain Setup (<code className="font-mono text-brand">api.evidcheck.com/v1</code>)
 					</h2>
 				</div>
 				<p className="text-xs text-gray-600 leading-relaxed">
@@ -54,19 +54,19 @@ export default nextConfig;`;
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
 					<div className="p-4 bg-gray-50 border border-gray-200 rounded-md space-y-1.5">
-						<span className="text-[10px] font-bold text-[#188015] uppercase tracking-wider font-mono">Step 1</span>
+						<span className="text-[10px] font-bold text-brand uppercase tracking-wider font-mono">Step 1</span>
 						<h4 className="text-xs font-bold text-gray-900">DNS CNAME Record</h4>
 						<p className="text-[11px] text-gray-500">Point your subdomain <code className="text-gray-800 font-mono">api.evidcheck.com</code> to your deployment host.</p>
 					</div>
 
 					<div className="p-4 bg-gray-50 border border-gray-200 rounded-md space-y-1.5">
-						<span className="text-[10px] font-bold text-[#188015] uppercase tracking-wider font-mono">Step 2</span>
+						<span className="text-[10px] font-bold text-brand uppercase tracking-wider font-mono">Step 2</span>
 						<h4 className="text-xs font-bold text-gray-900">Next.js Rewrite Proxy</h4>
 						<p className="text-[11px] text-gray-500">Proxy incoming <code className="text-gray-800 font-mono">/v1/*</code> routes to the Convex HTTP engine.</p>
 					</div>
 
 					<div className="p-4 bg-gray-50 border border-gray-200 rounded-md space-y-1.5">
-						<span className="text-[10px] font-bold text-[#188015] uppercase tracking-wider font-mono">Step 3</span>
+						<span className="text-[10px] font-bold text-brand uppercase tracking-wider font-mono">Step 3</span>
 						<h4 className="text-xs font-bold text-gray-900">TLS/SSL Certificate</h4>
 						<p className="text-[11px] text-gray-500">Automatic SSL provisioned via Cloudflare or Vercel Edge Network.</p>
 					</div>
@@ -84,7 +84,7 @@ export default nextConfig;`;
 						variant="ghost"
 						size="sm"
 						onClick={() => handleCopy(cnameRecord, "cname")}
-						className="h-7 text-xs text-[#188015] hover:bg-green-50 font-semibold gap-1"
+						className="h-7 text-xs text-brand hover:bg-green-50 font-semibold gap-1"
 					>
 						{copiedCname ? <Check size={12} /> : <Copy size={12} />}
 						<span>{copiedCname ? "Copied" : "Copy CNAME"}</span>

@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { requireSuperAdmin } from "./session";
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export const getBySlug = query({
 
 export const createCategory = mutation({
   args: {
+    sessionToken: v.string(),
     name: v.string(),
     slug: v.string(),
     description: v.optional(v.string()),
@@ -80,6 +82,7 @@ export const createCategory = mutation({
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     return await ctx.db.insert("serviceCategories", {
       ...args,
       isActive: true,
@@ -89,6 +92,7 @@ export const createCategory = mutation({
 
 export const updateCategory = mutation({
   args: {
+    sessionToken: v.string(),
     id: v.id("serviceCategories"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -98,13 +102,15 @@ export const updateCategory = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { id, ...patch } = args;
+    await requireSuperAdmin(ctx, args.sessionToken);
+    const { id, sessionToken: _t, ...patch } = args;
     await ctx.db.patch(id, patch);
   },
 });
 
 export const createAction = mutation({
   args: {
+    sessionToken: v.string(),
     categoryId: v.id("serviceCategories"),
     label: v.string(),
     slug: v.string(),
@@ -112,38 +118,46 @@ export const createAction = mutation({
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("serviceActions", args);
+    await requireSuperAdmin(ctx, args.sessionToken);
+    const { sessionToken: _t, ...rest } = args;
+    return await ctx.db.insert("serviceActions", rest);
   },
 });
 
 export const updateAction = mutation({
   args: {
+    sessionToken: v.string(),
     id: v.id("serviceActions"),
     label: v.optional(v.string()),
     enabled: v.optional(v.boolean()),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { id, ...patch } = args;
+    await requireSuperAdmin(ctx, args.sessionToken);
+    const { id, sessionToken: _t, ...patch } = args;
     await ctx.db.patch(id, patch);
   },
 });
 
 export const createCheckType = mutation({
   args: {
+    sessionToken: v.string(),
     categoryId: v.id("serviceCategories"),
     label: v.string(),
     slug: v.string(),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("serviceCheckTypes", args);
+    await requireSuperAdmin(ctx, args.sessionToken);
+    const { sessionToken: _t, ...rest } = args;
+    return await ctx.db.insert("serviceCheckTypes", rest);
   },
 });
 
 export const deleteCheckType = mutation({
-  args: { id: v.id("serviceCheckTypes") },
+  args: { sessionToken: v.string(), id: v.id("serviceCheckTypes") },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     await ctx.db.delete(args.id);
   },
 });

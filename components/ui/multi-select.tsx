@@ -50,7 +50,7 @@ export function MultiSelect({
 			<PopoverTrigger
 				className={cn(
 					"inline-flex items-center justify-between gap-1.5 h-9 px-2.5 bg-white border border-gray-200 rounded-md text-xs font-semibold text-gray-700 outline-none hover:border-gray-300 transition-colors cursor-pointer min-w-[130px]",
-					open && "border-[#188015] ring-1 ring-[#188015]/20",
+					open && "border-brand ring-1 ring-brand/20",
 					className
 				)}
 			>
@@ -89,7 +89,7 @@ export function MultiSelect({
 								className={cn(
 									"flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left w-full",
 									isChecked
-										? "bg-[#188015]/5 text-gray-900"
+										? "bg-brand/5 text-gray-900"
 										: "text-gray-700 hover:bg-gray-100"
 								)}
 							>

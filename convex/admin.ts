@@ -2,6 +2,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { recordAuditLog } from "./audit";
+import { requireSuperAdmin } from "./session";
 
 /**
  * Super Admin Queries
@@ -9,8 +10,9 @@ import { recordAuditLog } from "./audit";
  */
 
 export const getAllCompanies = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const companies = await ctx.db.query("companies").collect();
     
     // Attach statistics to each company
@@ -45,8 +47,9 @@ export const getAllCompanies = query({
 });
 
 export const getGlobalMetrics = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const companies = await ctx.db.query("companies").collect();
     const jobs = await ctx.db.query("jobs").collect();
     const users = await ctx.db.query("users").collect();
@@ -70,8 +73,9 @@ export const getGlobalMetrics = query({
 });
 
 export const getAllUsers = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const users = await ctx.db.query("users").collect();
     
     // Enrich with company names
@@ -89,8 +93,9 @@ export const getAllUsers = query({
 });
 
 export const getAllJobs = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: { sessionToken: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const jobs = await ctx.db
       .query("jobs")
       .order("desc")
@@ -115,8 +120,9 @@ export const getAllJobs = query({
 });
 
 export const getCompanyUsers = query({
-  args: { companyId: v.id("companies") },
+  args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     return await ctx.db
       .query("users")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -126,6 +132,7 @@ export const getCompanyUsers = query({
 
 export const updateCompany = mutation({
   args: {
+    sessionToken: v.string(),
     companyId: v.id("companies"),
     name: v.optional(v.string()),
     domain: v.optional(v.string()),
@@ -135,7 +142,8 @@ export const updateCompany = mutation({
     support_email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { companyId, ...updates } = args;
+    await requireSuperAdmin(ctx, args.sessionToken);
+    const { companyId, sessionToken: _t, ...updates } = args;
     await ctx.db.patch(companyId, updates);
 
     await recordAuditLog(ctx, {
@@ -150,8 +158,9 @@ export const updateCompany = mutation({
 });
 
 export const getCompanyById = query({
-  args: { companyId: v.id("companies") },
+  args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const company = await ctx.db.get(args.companyId);
     if (!company) return null;
     
@@ -182,9 +191,11 @@ export const getCompanyById = query({
 
 export const getAdminDashboardAnalytics = query({
   args: { 
+    sessionToken: v.string(),
     days: v.optional(v.number()) 
   },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const now = Date.now();
     const threshold = args.days ? now - (args.days * 24 * 60 * 60 * 1000) : 0;
 

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { JobStatsCards } from "@/components/dashboard/jobs/job-stats-cards";
 import { JobTableToolbar, JobFilterState } from "./components/job-table-toolbar";
 import { JobTable } from "./components/job-table";
+import { getSessionToken } from "@/lib/session-token";
 
 const DEFAULT_FILTERS: JobFilterState = {
 	search: "",
@@ -42,6 +43,7 @@ export default function JobListPage() {
 		api.verifications.getVerificationsByCompany,
 		member?.companyId
 			? {
+					sessionToken: getSessionToken() ?? "",
 					companyId: member.companyId as Id<"companies">,
 					source: filters.sources.length > 0 ? filters.sources : undefined,
 					status: filters.statuses.length > 0 ? filters.statuses : undefined,
@@ -55,7 +57,7 @@ export default function JobListPage() {
 
 	const stats = useQuery(
 		api.verifications.getJobStats,
-		member?.companyId ? { companyId: member.companyId as Id<"companies"> } : "skip"
+		member?.companyId ? { sessionToken: getSessionToken() ?? "", companyId: member.companyId as Id<"companies"> } : "skip"
 	);
 
 	const handleFilterChange = <K extends keyof JobFilterState>(key: K, value: JobFilterState[K]) => {
@@ -112,7 +114,7 @@ export default function JobListPage() {
 				<Button
 					onClick={handleExportCSV}
 					disabled={!jobs || jobs.length === 0}
-					className="h-9 text-xs font-semibold bg-[#188015] hover:bg-[#136610] text-white px-3.5 rounded-md gap-1.5 shadow-2xs disabled:opacity-50"
+					className="h-9 text-xs font-semibold bg-brand hover:bg-brand-dark text-white px-3.5 rounded-md gap-1.5 shadow-2xs disabled:opacity-50"
 				>
 					<Download size={14} />
 					<span>Export CSV</span>
@@ -131,7 +133,7 @@ export default function JobListPage() {
 				/>
 				{jobs === undefined ? (
 					<div className="flex flex-col items-center justify-center h-64 bg-white border border-gray-200 border-t-0 rounded-b-xl">
-						<Loader2 className="w-6 h-6 animate-spin text-[#188015] mb-2" />
+						<Loader2 className="w-6 h-6 animate-spin text-brand mb-2" />
 						<p className="text-xs text-gray-500 font-medium">Loading verification jobs…</p>
 					</div>
 				) : (

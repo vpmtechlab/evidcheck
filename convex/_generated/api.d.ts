@@ -27,6 +27,7 @@ import type * as permissions from "../permissions.js";
 import type * as pricing from "../pricing.js";
 import type * as reports from "../reports.js";
 import type * as services from "../services.js";
+import type * as session from "../session.js";
 import type * as transactions from "../transactions.js";
 import type * as users from "../users.js";
 import type * as verifications from "../verifications.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   pricing: typeof pricing;
   reports: typeof reports;
   services: typeof services;
+  session: typeof session;
   transactions: typeof transactions;
   users: typeof users;
   verifications: typeof verifications;

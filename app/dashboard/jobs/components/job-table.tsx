@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Clock, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Table,
@@ -100,8 +100,16 @@ export function JobTable({ jobs, currentPage, itemsPerPage, onPageChange }: JobT
 								return (
 									<TableRow
 										key={row._id}
+										tabIndex={0}
+										role="link"
 										onClick={() => handleRowClick(row._id)}
-										className="cursor-pointer hover:bg-gray-50/80 transition-colors"
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												handleRowClick(row._id);
+											}
+										}}
+										className="cursor-pointer hover:bg-gray-50/80 transition-colors focus-visible:outline-none focus-visible:bg-gray-50/80"
 									>
 										<TableCell className="font-mono text-xs font-bold text-gray-900">
 											{row._id.substring(0, 12)}…
@@ -126,13 +134,23 @@ export function JobTable({ jobs, currentPage, itemsPerPage, onPageChange }: JobT
 											{(entity.country as string) ?? "KE"}
 										</TableCell>
 										<TableCell>
-											<span
-												className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getResultBadgeColor(
-													row.resultStatus
-												)}`}
-											>
-												{row.resultStatus ?? "Pending"}
-											</span>
+											<div className="flex items-center gap-1.5">
+												<span
+													className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getResultBadgeColor(
+														row.resultStatus
+													)}`}
+												>
+													{row.resultStatus ?? "Pending"}
+												</span>
+												{row.fromCache && (
+													<span
+														title="Served from the EvidCheck registry cache"
+														className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200"
+													>
+														Cached
+													</span>
+												)}
+											</div>
 										</TableCell>
 										<TableCell className="max-w-[220px] truncate text-xs text-gray-600" title={row.message}>
 											{row.message || "—"}

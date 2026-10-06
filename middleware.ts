@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { AUTH_COOKIE_NAME, isSessionExpired } from "@/lib/session-cookie";
 
 export function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
@@ -15,7 +16,7 @@ export function middleware(request: NextRequest) {
 		return NextResponse.next();
 	}
 
-	const sessionCookie = request.cookies.get("auth_session")?.value;
+	const sessionCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
 	let session: {
 		userId?: string;
@@ -23,6 +24,7 @@ export function middleware(request: NextRequest) {
 		role?: string;
 		email?: string;
 		isSuperAdmin?: boolean;
+		expiresAt?: number;
 	} | null = null;
 
 	if (sessionCookie) {
@@ -34,10 +36,25 @@ export function middleware(request: NextRequest) {
 	}
 
 	const isAuthenticated = !!session?.userId;
+	const isExpired = isSessionExpired(session);
 	const isSuperAdmin =
 		session?.isSuperAdmin ||
 		session?.email?.endsWith("@vpmtechlab.com") ||
 		session?.role === "superadmin";
+
+	// 0. Expired sessions are dead on every front: wipe the cookie and force
+	// a fresh sign-in (legacy sessions without an expiry are left alone).
+	if (session?.userId && isExpired) {
+		if (pathname === "/login") {
+			const res = NextResponse.next();
+			res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
+			return res;
+		}
+		const loginUrl = new URL("/login", request.url);
+		const res = NextResponse.redirect(loginUrl);
+		res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
+		return res;
+	}
 
 	// 1. Root redirect
 	if (pathname === "/") {

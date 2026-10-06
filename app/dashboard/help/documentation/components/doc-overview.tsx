@@ -16,7 +16,7 @@ export function DocOverview({ apiKey, copiedKey, onCopyKey }: DocOverviewProps) 
 			{/* Base URLs & Environment Separation */}
 			<div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 shadow-2xs">
 				<div className="flex items-center gap-2">
-					<Globe size={18} className="text-[#188015]" />
+					<Globe size={18} className="text-brand" />
 					<h2 className="text-base font-bold text-gray-900 tracking-tight">
 						Environments & Base Endpoints
 					</h2>
@@ -63,7 +63,7 @@ export function DocOverview({ apiKey, copiedKey, onCopyKey }: DocOverviewProps) 
 			{/* Authentication & Headers */}
 			<div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 shadow-2xs">
 				<div className="flex items-center gap-2">
-					<Key size={18} className="text-[#188015]" />
+					<Key size={18} className="text-brand" />
 					<h2 className="text-base font-bold text-gray-900 tracking-tight">
 						Authentication Headers
 					</h2>
@@ -79,7 +79,7 @@ export function DocOverview({ apiKey, copiedKey, onCopyKey }: DocOverviewProps) 
 							variant="ghost"
 							size="sm"
 							onClick={onCopyKey}
-							className="h-6 px-2 text-[11px] text-[#188015] hover:bg-[#188015]/10 rounded font-semibold gap-1"
+							className="h-6 px-2 text-[11px] text-brand hover:bg-brand/10 rounded font-semibold gap-1"
 						>
 							{copiedKey ? <Check size={12} /> : <Copy size={12} />}
 							<span>{copiedKey ? "Copied" : "Copy Key"}</span>

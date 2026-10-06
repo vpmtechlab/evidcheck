@@ -1,5 +1,7 @@
 "use client";
 
+import { getSessionToken } from "@/lib/session-token";
+
 import React, { useContext } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -25,7 +27,7 @@ export function NotificationDropdown() {
   const { member } = useContext(AppContext);
   
   const notifications = useQuery(api.audit.getActiveNotificationsByUser, 
-    member?.id ? { userId: member.id as Id<"users"> } : "skip"
+    member?.id ? { sessionToken: getSessionToken() ?? "", userId: member.id as Id<"users"> } : "skip"
   );
   
   const clearNotifications = useMutation(api.audit.clearNotifications);
@@ -34,7 +36,7 @@ export function NotificationDropdown() {
 
   const handleClear = async () => {
     if (member?.id) {
-      await clearNotifications({ userId: member.id as Id<"users"> });
+      await clearNotifications({ sessionToken: getSessionToken() ?? "", userId: member.id as Id<"users"> });
     }
   };
 

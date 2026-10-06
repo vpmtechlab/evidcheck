@@ -10,6 +10,11 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-navy: var(--navy);
+  --color-navy-line: var(--navy-line);
+  --color-navy-soft: var(--navy-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,6 +64,11 @@
   --primary-foreground: oklch(0.985 0 0);
   --secondary: #0e1b42;
   --secondary-foreground: oklch(0.985 0 0);
+  --brand: #188015;
+  --brand-dark: #136610;
+  --navy: #0e1b42;
+  --navy-line: #1e2d5a;
+  --navy-soft: #172758;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -94,6 +104,11 @@
   --primary-foreground: oklch(0.985 0 0);
   --secondary: #0e1b42;
   --secondary-foreground: oklch(0.985 0 0);
+  --brand: #188015;
+  --brand-dark: #136610;
+  --navy: #0e1b42;
+  --navy-line: #1e2d5a;
+  --navy-soft: #172758;
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);

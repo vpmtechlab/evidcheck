@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Building2, UserCheck, FileText, Shield, ArrowRight } from "lucide-react";
+import { Search, Building2, UserCheck, FileText, Shield } from "lucide-react";
+import { PaletteServiceItem } from "./palette-service-item";
+import { PaletteFooter } from "./palette-footer";
 
-interface ServiceOption {
+export interface ServiceOption {
   id: string;
   label: string;
   description: string;
@@ -69,10 +71,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     );
   });
 
-  // Reset selection when filter changes
-  useEffect(() => {
+  // Reset selection when the query changes (handled in the input onChange)
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
     setSelectedIndex(0);
-  }, [query]);
+  };
 
   // Global keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -89,14 +92,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange]);
 
-  // Focus input when opened
+  // Focus the input on mount (the palette remounts every time it opens)
   useEffect(() => {
-    if (open) {
-      setQuery("");
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [open]);
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSelect = useCallback(
     (service: ServiceOption) => {
@@ -143,7 +143,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder="Search verification services..."
               className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 outline-none bg-transparent"
@@ -167,71 +167,21 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                   Verification Services
                 </p>
-                {filtered.map((service, index) => {
-                  const Icon = service.icon;
-                  const isSelected = index === selectedIndex;
-
-                  return (
-                    <button
-                      key={service.id}
-                      onClick={() => handleSelect(service)}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                      className={`
-                        w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors
-                        ${isSelected ? "bg-green-50 ring-1 ring-[#188015]/20" : "hover:bg-gray-50"}
-                      `}
-                    >
-                      <div
-                        className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? "bg-[#188015] text-white" : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        <Icon size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold truncate ${isSelected ? "text-[#188015]" : "text-gray-900"}`}>
-                          {service.label}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">{service.description}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider hidden sm:block">
-                          {service.category}
-                        </span>
-                        <ArrowRight
-                          size={14}
-                          className={`transition-colors ${isSelected ? "text-[#188015]" : "text-gray-300"}`}
-                        />
-                      </div>
-                    </button>
-                  );
-                })}
+                {filtered.map((service, index) => (
+                  <PaletteServiceItem
+                    key={service.id}
+                    service={service}
+                    isSelected={index === selectedIndex}
+                    onSelect={handleSelect}
+                    onHover={() => setSelectedIndex(index)}
+                  />
+                ))}
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-between">
-            <div className="flex items-center gap-3 text-[10px] text-gray-400 font-medium">
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded-[3px] text-[10px] font-bold">↑</kbd>
-                <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded-[3px] text-[10px] font-bold">↓</kbd>
-                navigate
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-white border border-gray-200 rounded-[3px] text-[10px] font-bold">↵</kbd>
-                select
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded-[3px] text-[10px] font-bold">esc</kbd>
-                close
-              </span>
-            </div>
-            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold">
-              <div className="w-3 h-3 bg-[#188015] rounded-xs flex items-center justify-center text-[8px] text-white font-black">E</div>
-              EvidCheck
-            </div>
-          </div>
+          <PaletteFooter />
         </div>
       </div>
     </>

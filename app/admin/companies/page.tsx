@@ -13,10 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from "next/navigation";
+import { getSessionToken } from "@/lib/session-token";
 
 export default function CompaniesAdminPage() {
   const router = useRouter();
-  const companies = useQuery(api.admin.getAllCompanies);
+  const companies = useQuery(api.admin.getAllCompanies, { sessionToken: getSessionToken() ?? "" });
 
   const handleViewDetails = (companyId: string) => {
     router.push(`/admin/companies/${companyId}`);
@@ -25,7 +26,7 @@ export default function CompaniesAdminPage() {
   if (companies === undefined) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[#188015]" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -67,7 +68,7 @@ export default function CompaniesAdminPage() {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-xs
-                      ${company.isSuperAdmin ? "bg-[#0e1b42]" : "bg-blue-600"}`}
+                      ${company.isSuperAdmin ? "bg-navy" : "bg-blue-600"}`}
                     >
                       {company.isSuperAdmin ? <ShieldAlert size={15} /> : <Building2 size={15} />}
                     </div>
@@ -92,7 +93,7 @@ export default function CompaniesAdminPage() {
                 <TableCell className="text-right text-xs font-mono font-bold text-gray-900">
                   {company.verificationCount}
                 </TableCell>
-                <TableCell className="text-right font-mono font-bold text-xs text-[#188015]">
+                <TableCell className="text-right font-mono font-bold text-xs text-brand">
                   ${company.availableBalance.toFixed(2)}
                 </TableCell>
                 <TableCell className="text-right text-gray-500 font-mono text-[11px]">

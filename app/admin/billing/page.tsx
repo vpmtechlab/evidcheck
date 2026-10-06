@@ -12,15 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getSessionToken } from "@/lib/session-token";
 
 export default function GlobalBillingAdminPage() {
-  const companies = useQuery(api.admin.getAllCompanies);
-  const metrics = useQuery(api.admin.getGlobalMetrics);
+  const companies = useQuery(api.admin.getAllCompanies, { sessionToken: getSessionToken() ?? "" });
+  const metrics = useQuery(api.admin.getGlobalMetrics, { sessionToken: getSessionToken() ?? "" });
 
   if (companies === undefined || metrics === undefined) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[#188015]" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -121,7 +122,7 @@ export default function GlobalBillingAdminPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="font-mono font-bold text-xs text-[#188015]">
+                    <div className="font-mono font-bold text-xs text-brand">
                       ${company.availableBalance.toFixed(2)}
                     </div>
                   </TableCell>

@@ -1,60 +1,25 @@
 "use client";
 
-import React, { createContext, useState } from "react";
+import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { useDevice } from "@/hooks/use-device";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import TopUpModal from "@/components/modals/topup-modal";
 import InviteUserModal from "@/components/modals/invite-user-modal";
-import { getSessionCookie, setSessionCookie } from "@/lib/session-cookie";
+import { getSessionCookie, setSessionCookie, isSessionExpired, createSessionExpiry, clearClientSession, STORAGE_KEYS } from "@/lib/session-cookie";
+import { getSessionToken } from "@/lib/session-token";
+import { AppContext, type Member, type BreadcrumbItem } from "./app-context";
 
-export interface BreadcrumbItem {
-	title: string;
-	link?: string;
-}
-
-export interface Member {
-	id?: string;
-	first_name?: string;
-	last_name?: string;
-	email?: string;
-	role?: string;
-	companyId?: string;
-	companyName?: string;
-	profile_image_url?: string;
-	[key: string]: unknown;
-}
-
-export interface AppContextType {
-	device: string;
-	member: Member | null;
-	setMember: React.Dispatch<React.SetStateAction<Member | null>>;
-	token: string | null;
-	setToken: React.Dispatch<React.SetStateAction<string | null>>;
-	sideBarOpen: boolean;
-	setSideBarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-	collapseSideBar: boolean;
-	setCollapseSideBar: React.Dispatch<React.SetStateAction<boolean>>;
-	loading: boolean;
-	setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-	breadcrumbItems: BreadcrumbItem[];
-	setBreadcrumbItems: React.Dispatch<React.SetStateAction<BreadcrumbItem[]>>;
-	showTopUp: boolean;
-	setShowTopUp: React.Dispatch<React.SetStateAction<boolean>>;
-	showInviteModal: boolean;
-	setShowInviteModal: React.Dispatch<React.SetStateAction<boolean>>;
-	viewMode: "dashboard" | "admin";
-}
-
-export const AppContext = createContext<AppContextType>({} as AppContextType);
-
-export const useApp = () => React.useContext(AppContext);
+export { AppContext, useApp } from "./app-context";
+export type { Member, BreadcrumbItem, AppContextType } from "./app-context";
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
 	const device = useDevice();
 	const pathname = usePathname();
+	const router = useRouter();
 	const [member, setMember] = useState<Member | null>(null);
 	const [token, setToken] = useState<string | null>(null);
 	const [sideBarOpen, setSideBarOpen] = useState(true);
@@ -70,11 +35,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 		setSideBarOpen(device !== "sm");
 	}, [device]);
 
-	const persistedUserId =
-		typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+	// Browser-only session values load after mount so the server and the first
+	// client render agree (prevents hydration mismatches, e.g. React #418).
+	const [clientSessionToken, setClientSessionToken] = useState<string | null>(null);
+	const [sessionExpiresAt, setSessionExpiresAt] = useState<number>(NaN);
+
+	React.useEffect(() => {
+		const cookie = getSessionCookie();
+		setClientSessionToken(getSessionToken());
+		setSessionExpiresAt(
+			cookie?.expiresAt ??
+				Number(localStorage.getItem(STORAGE_KEYS.expiresAt) ?? NaN),
+		);
+	}, []);
+
 	const hydratedUser = useQuery(
-		api.users.getUserById,
-		persistedUserId ? { userId: persistedUserId as Id<"users"> } : "skip",
+		api.session.getSessionUser,
+		clientSessionToken ? { sessionToken: clientSessionToken } : "skip",
 	);
 
 	// Use either the manually set member (from login) or the hydrated user (from persistence)
@@ -82,26 +59,70 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 	React.useEffect(() => {
 		if (typeof window !== "undefined") {
-			const storedUserId = localStorage.getItem("userId");
-			const storedCompanyId = localStorage.getItem("companyId");
 			const session = getSessionCookie();
 
+			// A dead session can never resurrect: wipe every trace of it
+			if (session && isSessionExpired(session)) {
+				clearClientSession();
+				setMember(null);
+				return;
+			}
+
+			const storedUserId = localStorage.getItem(STORAGE_KEYS.userId);
+			const storedCompanyId = localStorage.getItem(STORAGE_KEYS.companyId);
+			const storedExpiresAt = Number(
+				localStorage.getItem(STORAGE_KEYS.expiresAt) ?? NaN,
+			);
+
 			if (storedUserId && !session) {
+				if (Number.isFinite(storedExpiresAt) && storedExpiresAt <= Date.now()) {
+					clearClientSession();
+					setMember(null);
+					return;
+				}
+				const expiresAt = Number.isFinite(storedExpiresAt)
+					? storedExpiresAt
+					: createSessionExpiry();
 				setSessionCookie({
 					userId: storedUserId,
 					companyId: storedCompanyId || "",
 					role: (currentMember?.role as string) || "admin",
 					email: (currentMember?.email as string) || "",
 					isSuperAdmin: (currentMember?.email as string)?.endsWith("@vpmtechlab.com"),
+					expiresAt,
 				});
+				localStorage.setItem(STORAGE_KEYS.expiresAt, String(expiresAt));
 			} else if (!storedUserId && session?.userId) {
-				localStorage.setItem("userId", session.userId);
+				localStorage.setItem(STORAGE_KEYS.userId, session.userId);
 				if (session.companyId) {
-					localStorage.setItem("companyId", session.companyId);
+					localStorage.setItem(STORAGE_KEYS.companyId, session.companyId);
+				}
+				if (session.expiresAt) {
+					localStorage.setItem(STORAGE_KEYS.expiresAt, String(session.expiresAt));
 				}
 			}
 		}
 	}, [currentMember]);
+
+	// Session expiry watcher: automatically signs the user out and returns
+	// them to the login page the moment their session expires.
+	React.useEffect(() => {
+		if (!sessionExpiresAt || !Number.isFinite(sessionExpiresAt)) return;
+		if (pathname === "/login" || pathname === "/setup-password") return;
+		const logout = () => {
+			clearClientSession();
+			setMember(null);
+			toast.error("Your session has expired. Please sign in again.");
+			router.push("/login");
+		};
+		const remaining = sessionExpiresAt - Date.now();
+		if (remaining <= 0) {
+			logout();
+			return;
+		}
+		const timer = setTimeout(logout, remaining);
+		return () => clearTimeout(timer);
+	}, [sessionExpiresAt, pathname, router]);
 
 	return (
 		<AppContext.Provider

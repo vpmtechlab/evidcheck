@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/utils";
+import { getSessionToken } from "@/lib/session-token";
 
 interface AddPriceModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function AddPriceModal({ isOpen, onClose }: AddPriceModalProps) {
     setIsLoading(true);
     try {
       await addPrice({
+        sessionToken: getSessionToken() ?? "",
         serviceName: name,
         serviceId,
         serviceCategory: category,

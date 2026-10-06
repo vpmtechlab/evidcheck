@@ -1,36 +1,30 @@
 "use client";
 
-import { useLayoutEffect, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
-export function useDevice() {
-  const getDeviceSize = () => {
-    if (typeof window === "undefined") return "lg"; // Default for SSR
-    const width = window.innerWidth;
-    if (width < 768) {
-      return "sm";
-    } else if (width >= 768 && width < 992) {
-      return "md";
-    } else {
-      return "lg";
-    }
-  };
+type DeviceSize = "sm" | "md" | "lg";
 
-  const [device, setDevice] = useState(getDeviceSize());
+function getDeviceSize(): DeviceSize {
+  if (typeof window === "undefined") return "lg";
+  const width = window.innerWidth;
+  if (width < 768) return "sm";
+  if (width < 992) return "md";
+  return "lg";
+}
+
+/**
+ * Reports the current breakpoint. The first render is always "lg" so the
+ * server and the initial client render agree (prevents hydration mismatches);
+ * the real size is applied after mount and on resize.
+ */
+export function useDevice(): DeviceSize {
+  const [device, setDevice] = useState<DeviceSize>("lg");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleResize = () => {
-      setDevice(getDeviceSize());
-    };
-
-    window.addEventListener("resize", handleResize);
-    // Call once on mount to handle hydration mismatch if any
+    const handleResize = () => setDevice(getDeviceSize());
     handleResize();
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return device;

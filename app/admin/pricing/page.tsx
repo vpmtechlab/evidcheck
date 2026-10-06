@@ -1,5 +1,7 @@
 "use client";
 
+import { getSessionToken } from "@/lib/session-token";
+
 import React, { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -43,7 +45,7 @@ export default function SuperAdminPricingPage() {
 
     setIsSaving(true);
     try {
-      await updatePrice({ pricingId: id, newPrice });
+      await updatePrice({ sessionToken: getSessionToken() ?? "", pricingId: id, newPrice });
       toast.success("Price updated successfully!");
       setEditingId(null);
     } catch (error: any) {
@@ -56,7 +58,7 @@ export default function SuperAdminPricingPage() {
   if (prices === undefined) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-[#188015]" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -85,7 +87,7 @@ export default function SuperAdminPricingPage() {
           </p>
         </div>
         <Button 
-          className="bg-[#188015] hover:bg-[#136610] text-white text-xs font-semibold h-8 px-3 rounded-md flex items-center gap-1.5 shadow-xs"
+          className="bg-brand hover:bg-brand-dark text-white text-xs font-semibold h-8 px-3 rounded-md flex items-center gap-1.5 shadow-xs"
           onClick={() => setIsAddModalOpen(true)}
         >
           <Plus className="w-3.5 h-3.5" /> Add Service Rate

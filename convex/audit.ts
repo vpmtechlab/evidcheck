@@ -1,8 +1,9 @@
 import { query, internalMutation, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
+import { requireCompany, requireSuperAdmin, requireSelfOrCompanyMember, validateSession } from "./session";
 
 /**
  * Internal helper to record an audit log.
@@ -47,10 +48,12 @@ export const recordLog = internalMutation({
  */
 export const getAuditLogsByCompany = query({
   args: { 
+    sessionToken: v.string(),
     companyId: v.id("companies"),
     paginationOpts: paginationOptsValidator 
   },
   handler: async (ctx, args) => {
+    await requireCompany(ctx, args.sessionToken, args.companyId);
     const logs = await ctx.db
       .query("auditLogs")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -78,8 +81,9 @@ export const getAuditLogsByCompany = query({
  * Used by super-admin audit view.
  */
 export const getGlobalAuditLogs = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: { sessionToken: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     const logs = await ctx.db
       .query("auditLogs")
       .order("desc")
@@ -128,8 +132,9 @@ export async function recordNotification(ctx: MutationCtx, args: {
  * Fetch notifications for a specific user.
  */
 export const getActiveNotificationsByUser = query({
-  args: { userId: v.id("users") },
+  args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
+    await requireSelfOrCompanyMember(ctx, args.sessionToken, args.userId);
     return await ctx.db
       .query("notifications")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -142,8 +147,12 @@ export const getActiveNotificationsByUser = query({
  * Mark all notifications as read for a specific user.
  */
 export const clearNotifications = mutation({
-  args: { userId: v.id("users") },
+  args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== args.userId) {
+      throw new ConvexError("Forbidden.");
+    }
     const notifications = await ctx.db
       .query("notifications")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -160,8 +169,11 @@ export const clearNotifications = mutation({
  * Mark a single notification as read.
  */
 export const markAsRead = mutation({
-  args: { notificationId: v.id("notifications") },
+  args: { sessionToken: v.string(), notificationId: v.id("notifications") },
   handler: async (ctx, args) => {
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification) throw new ConvexError("Notification not found");
+    await requireSelfOrCompanyMember(ctx, args.sessionToken, notification.userId);
     await ctx.db.patch(args.notificationId, { isRead: true });
   },
 });
@@ -199,8 +211,9 @@ export async function notifyCompanyUsers(ctx: MutationCtx, args: {
  * Fetch recent login history for a specific user.
  */
 export const getLoginHistoryByUser = query({
-  args: { userId: v.id("users") },
+  args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
+    await requireSelfOrCompanyMember(ctx, args.sessionToken, args.userId);
     const logs = await ctx.db
       .query("auditLogs")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

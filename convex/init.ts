@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 // ── Service Seed Data ─────────────────────────────────────────────────────────
 // Mirrors the hardcoded SERVICES constant in choose-service.tsx and
@@ -69,7 +69,7 @@ const SERVICE_SEED = [
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
-export const seedMockData = mutation({
+export const seedMockData = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Check if VPMTechLab super admin exists
@@ -131,7 +131,7 @@ export const seedMockData = mutation({
  * Seeds the service category hierarchy and pricing. Idempotent — skips 
  * categories and price entries that already exist (matched by slug / serviceId).
  */
-export const seedServices = mutation({
+export const seedServices = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Delete obsolete categories (e.g. AML)
@@ -239,7 +239,7 @@ export const seedServices = mutation({
 /**
  * Resets and re-seeds all service categories, actions, and check types.
  */
-export const resetAndSeedServices = mutation({
+export const resetAndSeedServices = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Remove old service categories, actions, and check types

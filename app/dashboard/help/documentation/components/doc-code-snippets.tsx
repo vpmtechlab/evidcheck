@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { servicePresets, ServicePreset } from "./doc-presets";
+import { buildSnippet } from "./snippet-templates";
 
 const languages = [
   { id: "curl", name: "cURL", icon: Terminal },
@@ -37,169 +38,12 @@ export function DocCodeSnippets({
 
   const preset =
     servicePresets.find((p) => p.id === selectedPresetId) || servicePresets[0];
-  const keyToDisplay = apiKey || "evid_live_sk_8942104829104821";
-  const baseUrl = "https://api.evidcheck.com";
-
-  const getSnippet = () => {
-    const fullUrl = `${baseUrl}${preset.endpoint}`;
-    const isPost = preset.method === "POST";
-    const jsonBody = isPost ? JSON.stringify(preset.payload, null, 2) : "";
-
-    switch (activeLang) {
-      case "curl":
-        if (isPost) {
-          return `curl -X POST ${fullUrl} \\
-  -H "x-api-key: ${keyToDisplay}" \\
-  -H "Content-Type: application/json" \\
-  -d '${JSON.stringify(preset.payload)}'`;
-        }
-        return `curl -X GET ${fullUrl} \\
-  -H "x-api-key: ${keyToDisplay}"`;
-
-      case "node":
-        if (isPost) {
-          return `const axios = require('axios');
-
-const response = await axios.post('${fullUrl}', 
-  ${jsonBody}, 
-  {
-    headers: {
-      'x-api-key': '${keyToDisplay}',
-      'Content-Type': 'application/json'
-    }
-  }
-);
-
-console.log(response.data);`;
-        }
-        return `const axios = require('axios');
-
-const response = await axios.get('${fullUrl}', {
-  headers: {
-    'x-api-key': '${keyToDisplay}'
-  }
-});
-
-console.log(response.data);`;
-
-      case "python":
-        if (isPost) {
-          return `import requests
-
-url = "${fullUrl}"
-headers = {
-    "x-api-key": "${keyToDisplay}",
-    "Content-Type": "application/json"
-}
-payload = ${JSON.stringify(preset.payload, null, 4)}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())`;
-        }
-        return `import requests
-
-url = "${fullUrl}"
-headers = {
-    "x-api-key": "${keyToDisplay}"
-}
-
-response = requests.get(url, headers=headers)
-print(response.json())`;
-
-      case "go":
-        if (isPost) {
-          return `package main
-
-import (
-	"bytes"
-	"fmt"
-	"net/http"
-	"io"
-)
-
-func main() {
-	url := "${fullUrl}"
-	var jsonStr = []byte(\`${JSON.stringify(preset.payload)}\`)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-	req.Header.Set("x-api-key", "${keyToDisplay}")
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil { panic(err) }
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Println(string(body))
-}`;
-        }
-        return `package main
-
-import (
-	"fmt"
-	"net/http"
-	"io"
-)
-
-func main() {
-	url := "${fullUrl}"
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("x-api-key", "${keyToDisplay}")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil { panic(err) }
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Println(string(body))
-}`;
-
-      case "php":
-        if (isPost) {
-          return `<?php
-
-$ch = curl_init();
-
-curl_setopt($ch, CURLOPT_URL, "${fullUrl}");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_POST, 1);
-curl_setopt($ch, CURLOPT_POSTFIELDS, '${JSON.stringify(preset.payload)}');
-
-$headers = array(
-  'x-api-key: ${keyToDisplay}',
-  'Content-Type: application/json'
-);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-$result = curl_exec($ch);
-curl_close($ch);
-
-echo $result;`;
-        }
-        return `<?php
-
-$ch = curl_init();
-
-curl_setopt($ch, CURLOPT_URL, "${fullUrl}");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-$headers = array(
-  'x-api-key: ${keyToDisplay}'
-);
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-$result = curl_exec($ch);
-curl_close($ch);
-
-echo $result;`;
-
-      default:
-        return "";
-    }
-  };
-
-  const codeSnippet = getSnippet();
+  const codeSnippet = buildSnippet(activeLang, {
+    fullUrl: `https://api.evidcheck.com${preset.endpoint}`,
+    method: preset.method,
+    payload: preset.payload,
+    apiKey: apiKey || "evid_live_sk_YOUR_KEY_HERE",
+  });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeSnippet);
@@ -219,7 +63,7 @@ echo $result;`;
           >
             <SelectTrigger
               size="sm"
-              className="w-auto min-w-52 border-gray-700 bg-gray-900 text-xs font-mono text-gray-200 hover:bg-gray-800 focus-visible:border-[#188015] focus-visible:ring-[#188015]/30"
+              className="w-auto min-w-52 border-gray-700 bg-gray-900 text-xs font-mono text-gray-200 hover:bg-gray-800 focus-visible:border-brand focus-visible:ring-brand/30"
             >
               <SelectValue />
             </SelectTrigger>
@@ -239,18 +83,15 @@ echo $result;`;
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
             {languages.map((lang) => {
               const Icon = lang.icon;
+              const isActive = activeLang === lang.id;
               return (
                 <button
                   key={lang.id}
                   onClick={() => setActiveLang(lang.id)}
                   className={`
-										px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors whitespace-nowrap
-										${
-                      activeLang === lang.id
-                        ? "bg-[#188015] text-white shadow-xs"
-                        : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/60"
-                    }
-									`}
+                    px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors whitespace-nowrap
+                    ${isActive ? "bg-brand text-white shadow-xs" : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/60"}
+                  `}
                 >
                   <Icon size={12} />
                   <span>{lang.name}</span>
