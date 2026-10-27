@@ -37,7 +37,7 @@ export const getBillingAnalytics = query({
 
       const dayKey = dayDate.toISOString().split("T")[0];
       const stats = dailyStats.get(dayKey);
-      if (stats) {
+      if (stats && tx.status !== "pending") {
         if (tx.type === "top_up") {
           stats.toppedUp += tx.amount;
         } else {

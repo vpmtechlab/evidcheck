@@ -88,7 +88,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 					companyId: storedCompanyId || "",
 					role: (currentMember?.role as string) || "admin",
 					email: (currentMember?.email as string) || "",
-					isSuperAdmin: (currentMember?.email as string)?.endsWith("@vpmtechlab.com"),
+					isSuperAdmin: currentMember?.isSuperAdmin === true,
 					expiresAt,
 				});
 				localStorage.setItem(STORAGE_KEYS.expiresAt, String(expiresAt));

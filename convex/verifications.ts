@@ -3,7 +3,7 @@ import { v, ConvexError } from "convex/values";
 import { Id, Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { recordAuditLog, recordNotification } from "./audit";
-import { requireCompany } from "./session";
+import { requireCompany, validateSession } from "./session";
 
 // ── Registry Cache (30-day TTL) ─────────────────────────────────────────────
 // Shared platform cache for registry lookups. Repeat searches are served from
@@ -116,12 +116,14 @@ export const recordCacheHit = internalMutation({
  */
 export const getCacheStatus = query({
   args: {
+    sessionToken: v.string(),
     serviceType: v.string(),
     lookupId: v.string(),
     country: v.string(),
     now: v.number(),
   },
   handler: async (ctx, args) => {
+    await validateSession(ctx, args.sessionToken);
     const trimmed = args.lookupId.trim();
     if (!trimmed) return { cached: false as const };
     const cacheKey = buildRegistryCacheKey(
@@ -887,6 +889,26 @@ function deriveJobOutcome(payload: Record<string, unknown>): {
 	};
 }
 
+/** Deterministic, obviously-fake result data for sandbox (test key) jobs. */
+function buildSandboxPayload(
+	serviceType: string,
+	entity: EntityData,
+): Record<string, unknown> {
+	const echo = Object.fromEntries(
+		Object.entries(entity ?? {}).filter(([, v]) => typeof v === "string" || typeof v === "number"),
+	);
+	return {
+		...echo,
+		serviceType,
+		sandbox: true,
+		name: "SANDBOX TEST ENTITY",
+		status: "ACTIVE",
+		verificationStatus: "approved",
+		verificationMessage: "Sandbox verification (test data, no registry was queried)",
+		source: "EvidCheck Sandbox",
+	};
+}
+
 export const runVerificationInternal = internalAction({
 	args: {
 		companyId: v.id("companies"),
@@ -1014,6 +1036,22 @@ export const runVerificationInternal = internalAction({
 			source: args.source,
 			feesCharged: 0,
 		})) as Id<"jobs">;
+
+		// Sandbox: never touch real registries or the AI engine. Test keys get
+		// deterministic fixture data at zero cost.
+		if (isSandbox) {
+			const sandboxPayload = buildSandboxPayload(
+				args.serviceType,
+				args.entityData as EntityData,
+			);
+			await ctx.runMutation(internal.verifications.completeVerification, {
+				jobId,
+				resultStatus: "approved",
+				message: "Sandbox verification (test data, no registry was queried)",
+				resultPayload: sandboxPayload,
+			});
+			return { jobId, resultStatus: "approved", fromCache: false, data: sandboxPayload };
+		}
 
 		// 4. Call AI engine to generate realistic result payload
 		let aiPayload: Record<string, unknown>;
@@ -1155,6 +1193,7 @@ export const runVerificationInternal = internalAction({
  */
 export const cancelJob = mutation({
 	args: {
+		sessionToken: v.string(),
 		jobId: v.id("jobs"),
 	},
 	handler: async (ctx, args) => {
@@ -1162,6 +1201,7 @@ export const cancelJob = mutation({
 		if (!job) {
 			throw new ConvexError("Verification job not found.");
 		}
+		const session = await requireCompany(ctx, args.sessionToken, job.companyId);
 
 		if (
 			job.resultStatus === "approved" ||
@@ -1178,7 +1218,7 @@ export const cancelJob = mutation({
 
 		await recordAuditLog(ctx, {
 			companyId: job.companyId,
-			userId: job.userId,
+			userId: session.userId,
 			action: "job_cancelled",
 			details: `Verification job ${args.jobId} was manually cancelled.`,
 		});

@@ -1,12 +1,13 @@
-import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { query, mutation, internalMutation } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { recordAuditLog } from "./audit";
-import { requireSuperAdmin } from "./session";
+import { requireSuperAdmin, revokeUserSessions, toPublicUser } from "./session";
 
 /**
  * Super Admin Queries
- * These should eventually include auth guards to ensure the caller is a VPMTechLab user.
+ * Every function here is guarded by requireSuperAdmin, which checks the
+ * caller's `users.isSuperAdmin` flag in the database.
  */
 
 export const getAllCompanies = query({
@@ -83,9 +84,8 @@ export const getAllUsers = query({
       users.map(async (user) => {
         const company = await ctx.db.get(user.companyId);
         return {
-          ...user,
+          ...toPublicUser(user),
           companyName: company?.name || "Unknown",
-          isSuperAdmin: company?.isSuperAdmin || false,
         };
       })
     );
@@ -123,10 +123,76 @@ export const getCompanyUsers = query({
   args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
     await requireSuperAdmin(ctx, args.sessionToken);
-    return await ctx.db
+    const users = await ctx.db
       .query("users")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect();
+    return users.map(toPublicUser);
+  },
+});
+
+/**
+ * Grants or revokes platform superadmin for a user. Superadmin-only; a
+ * superadmin cannot revoke themselves, so the platform always keeps one.
+ */
+export const setUserSuperAdmin = mutation({
+  args: {
+    sessionToken: v.string(),
+    userId: v.id("users"),
+    isSuperAdmin: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const session = await requireSuperAdmin(ctx, args.sessionToken);
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new ConvexError("User not found.");
+
+    if (!args.isSuperAdmin && target._id === session.userId) {
+      throw new ConvexError("You cannot revoke your own superadmin access.");
+    }
+    if (args.isSuperAdmin && target.status !== "active") {
+      throw new ConvexError("Only active users can be made superadmins.");
+    }
+    if ((target.isSuperAdmin === true) === args.isSuperAdmin) return true;
+
+    await ctx.db.patch(args.userId, { isSuperAdmin: args.isSuperAdmin });
+    // Force the target to sign in again so every client picks up the change.
+    await revokeUserSessions(ctx, args.userId);
+
+    await recordAuditLog(ctx, {
+      companyId: target.companyId,
+      userId: session.userId,
+      action: args.isSuperAdmin ? "SUPERADMIN_GRANTED" : "SUPERADMIN_REVOKED",
+      entityId: args.userId,
+      entityType: "user",
+      details: `${args.isSuperAdmin ? "Granted" : "Revoked"} platform superadmin for ${target.email}`,
+    });
+    return true;
+  },
+});
+
+/**
+ * Bootstrap only: grant superadmin by email when no one can sign in to the
+ * admin console yet. Run from the CLI, never from a client:
+ *   npx convex run admin:bootstrapSuperAdmin '{"email":"you@company.com"}'
+ */
+export const bootstrapSuperAdmin = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.email.trim()))
+      .first();
+    if (!user) throw new ConvexError(`No user with email ${args.email}`);
+    await ctx.db.patch(user._id, { isSuperAdmin: true });
+    await revokeUserSessions(ctx, user._id);
+    await recordAuditLog(ctx, {
+      companyId: user.companyId,
+      action: "SUPERADMIN_GRANTED",
+      entityId: user._id,
+      entityType: "user",
+      details: `Granted platform superadmin for ${user.email} via CLI bootstrap`,
+    });
+    return { userId: user._id };
   },
 });
 

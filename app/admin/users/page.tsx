@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { User, ShieldAlert, MoreHorizontal, Loader2 } from "lucide-react";
+import { ShieldAlert, ShieldOff, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,9 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getSessionToken } from "@/lib/session-token";
+import { useApp } from "@/components/providers/app-context";
+import {
+  SuperAdminToggleDialog,
+  type SuperAdminTarget,
+} from "./components/superadmin-toggle-dialog";
 
 export default function UsersAdminPage() {
   const users = useQuery(api.admin.getAllUsers, { sessionToken: getSessionToken() ?? "" });
+  const { member } = useApp();
+  const [target, setTarget] = useState<SuperAdminTarget | null>(null);
 
   if (users === undefined) {
     return (
@@ -52,7 +59,7 @@ export default function UsersAdminPage() {
               <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider">Role</TableHead>
               <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider">Status</TableHead>
               <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-right">Joined</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="font-bold text-xs text-gray-700 uppercase tracking-wider text-right">Platform Access</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -71,10 +78,7 @@ export default function UsersAdminPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 text-xs">
-                    {user.isSuperAdmin && <ShieldAlert size={14} className="text-purple-600" />}
-                    <span className={user.isSuperAdmin ? "font-bold text-purple-700" : "text-gray-700 font-medium"}>
-                      {user.companyName}
-                    </span>
+                    <span className="text-gray-700 font-medium">{user.companyName}</span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -92,10 +96,26 @@ export default function UsersAdminPage() {
                 <TableCell className="text-right text-gray-500 font-mono text-[11px]">
                   {new Date(user.createdAt).toLocaleDateString()}
                 </TableCell>
-                <TableCell>
-                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100">
-                    <MoreHorizontal size={15} />
-                  </button>
+                <TableCell className="text-right">
+                  {user.isSuperAdmin ? (
+                    <button
+                      onClick={() => setTarget(user)}
+                      disabled={user._id === member?.id}
+                      title={user._id === member?.id ? "You cannot revoke your own access" : "Revoke superadmin"}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <ShieldAlert size={12} /> Superadmin
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setTarget(user)}
+                      disabled={user.status !== "active"}
+                      title={user.status !== "active" ? "Only active users can be promoted" : "Grant superadmin"}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-gray-500 border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ShieldOff size={12} /> Make superadmin
+                    </button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -110,6 +130,8 @@ export default function UsersAdminPage() {
           </TableBody>
         </Table>
       </div>
+
+      <SuperAdminToggleDialog user={target} onClose={() => setTarget(null)} />
     </div>
   );
 }

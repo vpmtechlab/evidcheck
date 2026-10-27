@@ -105,6 +105,7 @@ export const getSessionUser = query({
 			needsPasswordChange: user.needsPasswordChange ?? false,
 			has_completed_tour: user.has_completed_tour ?? false,
 			twoFactorEnabled: !!user.twoFactorEnabled,
+			isSuperAdmin: user.isSuperAdmin === true,
 		};
 	},
 });
@@ -131,7 +132,66 @@ export const resolve = internalQuery({
   },
 });
 
-/** Throws unless the token maps to a live, unexpired session. */
+/** Account states that may hold a session. */
+const SESSION_STATUSES = new Set(["active", "invited"]);
+
+/**
+ * Company-level roles a member may hold. Platform superadmin is NOT a role;
+ * it is the separate `users.isSuperAdmin` flag.
+ */
+export const COMPANY_ROLES = ["admin", "Admin", "Compliance Officer"] as const;
+
+/** Throws unless `role` is one of the assignable company roles. */
+export function assertCompanyRole(role: string): void {
+	if (!(COMPANY_ROLES as readonly string[]).includes(role)) {
+		throw new ConvexError(`Invalid role "${role}".`);
+	}
+}
+
+/** True when the user is a company admin (role strings are case-insensitive). */
+export function isCompanyAdminRole(role: string | undefined): boolean {
+	return (role ?? "").toLowerCase() === "admin";
+}
+
+/** True only when the user row carries the platform superadmin flag. */
+export function isSuperAdminUser(user: Doc<"users"> | null | undefined): boolean {
+	return user?.isSuperAdmin === true;
+}
+
+/** Strips credentials and secrets from a user row before it leaves the backend. */
+export function toPublicUser(user: Doc<"users">) {
+	const {
+		password: _password,
+		passwordHash: _passwordHash,
+		twoFactorSecret: _twoFactorSecret,
+		setupToken: _setupToken,
+		setupTokenExpires: _setupTokenExpires,
+		failedLoginAttempts: _failedLoginAttempts,
+		lockedUntil: _lockedUntil,
+		...rest
+	} = user;
+	return { ...rest, isSuperAdmin: user.isSuperAdmin === true };
+}
+
+/** Revokes every session belonging to a user (password change, deletion...). */
+export async function revokeUserSessions(
+	ctx: MutationCtx,
+	userId: Id<"users">,
+	keepTokenHash?: string,
+): Promise<void> {
+	const sessions = await ctx.db
+		.query("sessions")
+		.withIndex("by_userId", (q) => q.eq("userId", userId))
+		.take(500);
+	for (const s of sessions) {
+		if (s.tokenHash !== keepTokenHash) await ctx.db.delete(s._id);
+	}
+}
+
+/**
+ * Throws unless the token maps to a live, unexpired session whose user still
+ * exists and is allowed to sign in.
+ */
 export async function validateSession(
 	ctx: QueryCtx | MutationCtx,
 	sessionToken: string | undefined,
@@ -145,6 +205,10 @@ export async function validateSession(
 	if (!session) throw new ConvexError("Unauthorized: invalid session.");
 	if (session.expiresAt <= Date.now()) {
 		throw new ConvexError("Session expired. Please sign in again.");
+	}
+	const user = await ctx.db.get(session.userId);
+	if (!user || !SESSION_STATUSES.has(user.status) || user.companyId !== session.companyId) {
+		throw new ConvexError("Unauthorized: account is no longer active.");
 	}
 	return session;
 }
@@ -177,18 +241,32 @@ export async function requireSelfOrCompanyMember(
 	return session;
 }
 
-/** validateSession + caller must be a company admin or platform superadmin. */
+/** validateSession + caller must be the target user or a same-company admin. */
+export async function requireSelfOrCompanyAdmin(
+	ctx: QueryCtx | MutationCtx,
+	sessionToken: string | undefined,
+	targetUserId: Id<"users"> | string,
+): Promise<SessionDoc> {
+	const session = await validateSession(ctx, sessionToken);
+	if (session.userId === targetUserId) return session;
+	const target = await ctx.db.get(targetUserId as Id<"users">);
+	if (!target) throw new ConvexError("Forbidden.");
+	return await requireCompanyAdmin(ctx, sessionToken, target.companyId);
+}
+
+/** validateSession + caller must be a company admin (same company) or platform superadmin. */
 export async function requireCompanyAdmin(
 	ctx: QueryCtx | MutationCtx,
 	sessionToken: string | undefined,
 	companyId: Id<"companies"> | string,
 ): Promise<SessionDoc> {
-	const session = await requireCompany(ctx, sessionToken, companyId);
+	const session = await validateSession(ctx, sessionToken);
 	const user = await ctx.db.get(session.userId);
-	const role = (user?.role || session.role).toLowerCase();
-	const email = user?.email || session.email;
-	const isSuperAdmin = role === "superadmin" || email.endsWith("@vpmtechlab.com");
-	if (role !== "admin" && !isSuperAdmin) {
+	if (isSuperAdminUser(user)) return session;
+	if (session.companyId !== companyId) {
+		throw new ConvexError("Forbidden: company mismatch.");
+	}
+	if (!isCompanyAdminRole(user?.role)) {
 		throw new ConvexError("Forbidden: admin role required.");
 	}
 	return session;
@@ -201,9 +279,7 @@ export async function requireSuperAdmin(
 ): Promise<SessionDoc> {
 	const session = await validateSession(ctx, sessionToken);
 	const user = await ctx.db.get(session.userId);
-	const role = (user?.role || session.role).toLowerCase();
-	const email = user?.email || session.email;
-	if (role !== "superadmin" && !email.endsWith("@vpmtechlab.com")) {
+	if (!isSuperAdminUser(user)) {
 		throw new ConvexError("Forbidden: superadmin required.");
 	}
 	return session;

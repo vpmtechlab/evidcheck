@@ -1,18 +1,17 @@
-import { action } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 
 /**
  * Main entry point for REST API Verifications.
  */
-export const verifyAndRun = action({
+export const verifyAndRun = internalAction({
 	args: {
 		apiKey: v.string(),
 		serviceType: v.string(),
 		entityData: v.record(v.string(), v.any()),
 		webhookUrl: v.optional(v.string()),
-		isSandbox: v.optional(v.boolean()),
 	},
 	handler: async (
 		ctx,
@@ -42,7 +41,8 @@ export const verifyAndRun = action({
 		}
 
 		// Determine if Sandbox environment
-		const isSandbox = args.apiKey.startsWith("evid_test_sk_") || !!args.isSandbox;
+		// The key alone decides the environment; callers cannot opt into sandbox.
+		const isSandbox = args.apiKey.startsWith("evid_test_sk_");
 
 		// 2. Find owner admin user for company
 		const users = await ctx.runQuery(internal.users.listUsersInternal, {
@@ -100,7 +100,7 @@ export const verifyAndRun = action({
 /**
  * Retrieve verification job results by Job ID via REST API.
  */
-export const getJobResult = action({
+export const getJobResult = internalAction({
 	args: {
 		apiKey: v.string(),
 		jobId: v.string(),
@@ -167,7 +167,7 @@ export const getJobResult = action({
 /**
  * List Verification Jobs (Paginated) via REST API.
  */
-export const listJobs = action({
+export const listJobs = internalAction({
 	args: {
 		apiKey: v.string(),
 		page: v.optional(v.number()),
@@ -252,7 +252,7 @@ export const listJobs = action({
 /**
  * Retrieve Wallet Balance via REST API.
  */
-export const getBalance = action({
+export const getBalance = internalAction({
 	args: {
 		apiKey: v.string(),
 	},
@@ -298,7 +298,7 @@ export const getBalance = action({
  * Top Up Wallet Balance via Paystack API Infrastructure.
  * Initiates Paystack checkout or direct sandbox top-up.
  */
-export const topUpBalance = action({
+export const topUpBalance = internalAction({
 	args: {
 		apiKey: v.string(),
 		amount: v.number(),
@@ -359,69 +359,64 @@ export const topUpBalance = action({
 		}
 
 		const targetEmail = args.email || owner.email || "billing@company.com";
-		const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
-		// 1. Live Paystack Transaction Initialization
-		if (paystackSecret && !isSandbox) {
-			try {
-				const paystackRes = await ctx.runAction(internal.payments.initializeTransactionInternal, {
+		// Sandbox keys never move real money: the sandbox wallet is unlimited and
+		// verifications run against fixtures, so there is nothing to credit.
+		if (isSandbox) {
+			return {
+				success: true,
+				status: 200,
+				message: "Sandbox top-up simulated. Sandbox verifications are free; no real balance was changed.",
+				data: {
+					reference: `EV_SANDBOX_${Date.now()}`,
 					amount: args.amount,
-					email: targetEmail,
-					companyId: company._id,
-					userId: owner.id,
-					callback_url: args.callbackUrl,
-				});
-
-				return {
-					success: true,
-					status: 200,
-					message: "Paystack payment transaction initialized successfully.",
-					data: {
-						reference: paystackRes.reference,
-						authorizationUrl: paystackRes.authorization_url,
-						accessCode: paystackRes.access_code,
-						amount: args.amount,
-						currency: args.currency || "USD",
-						status: "pending_payment",
-					},
-					instructions: "Direct user to 'authorizationUrl' to complete payment. Wallet balance will be credited automatically upon Paystack webhook confirmation.",
-				};
-			} catch (err: unknown) {
-				const error = err as Error;
-				return {
-					success: false,
-					status: 500,
-					message: error.message || "Failed to initialize Paystack transaction.",
-				};
-			}
+					currency: args.currency || "USD",
+					status: "success",
+				},
+				instructions: "Sandbox requests are never billed. Use a live key and complete Paystack checkout to fund your real wallet.",
+			};
 		}
 
-		// 2. Sandbox / Direct Top-Up Mode
-		const referenceId = `EV_SANDBOX_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-		await ctx.runMutation(internal.balances.addFunds, {
-			companyId: company._id,
-			userId: owner.id,
-			amount: args.amount,
-			referenceId,
-		});
+		if (!process.env.PAYSTACK_SECRET_KEY) {
+			return {
+				success: false,
+				status: 503,
+				message: "Payments are not configured on this deployment.",
+			};
+		}
 
-		const newBalance = await ctx.runQuery(internal.users.getCompanyBalanceInternal, {
-			companyId: company._id,
-		});
-
-		return {
-			success: true,
-			status: 200,
-			message: `Sandbox Top-Up successful. Added $${args.amount.toFixed(2)} USD to company wallet.`,
-			data: {
-				reference: referenceId,
-				authorizationUrl: "https://checkout.paystack.com/sandbox-demo-success",
-				accessCode: "sandbox_code_demo",
+		// Live: initialize a Paystack checkout. The wallet is credited only by the
+		// signed Paystack webhook once the charge actually succeeds.
+		try {
+			const paystackRes = await ctx.runAction(internal.payments.initializeTransactionInternal, {
 				amount: args.amount,
-				currency: args.currency || "USD",
-				status: "success",
-			},
-			instructions: "Sandbox test top-up executed cleanly. Balance updated to $" + newBalance.toFixed(2),
-		};
+				email: targetEmail,
+				companyId: company._id,
+				userId: owner.id,
+				callback_url: args.callbackUrl,
+			});
+
+			return {
+				success: true,
+				status: 200,
+				message: "Paystack payment transaction initialized successfully.",
+				data: {
+					reference: paystackRes.reference,
+					authorizationUrl: paystackRes.authorization_url,
+					accessCode: paystackRes.access_code,
+					amount: args.amount,
+					currency: args.currency || "USD",
+					status: "pending_payment",
+				},
+				instructions: "Direct user to 'authorizationUrl' to complete payment. Wallet balance will be credited automatically upon Paystack webhook confirmation.",
+			};
+		} catch (err: unknown) {
+			const error = err as Error;
+			return {
+				success: false,
+				status: 500,
+				message: error.message || "Failed to initialize Paystack transaction.",
+			};
+		}
 	},
 });

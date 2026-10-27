@@ -79,6 +79,7 @@ export function FillDetails({
 		api.verifications.getCacheStatus,
 		lookupKeyForCache.trim() !== ""
 			? {
+					sessionToken: getSessionToken() ?? "",
 					serviceType: effectiveServiceType,
 					lookupId: lookupKeyForCache,
 					country: formData.country,

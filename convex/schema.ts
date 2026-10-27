@@ -18,9 +18,10 @@ export default defineSchema({
 
   registrationVerifications: defineTable({
     email: v.string(),
-    otpCode: v.string(),
+    otpCode: v.string(), // SHA-256 of the code (legacy rows may hold plaintext)
     expiresAt: v.number(),
     attempts: v.number(),
+    verified: v.optional(v.boolean()), // set once the OTP has been confirmed
     companyData: v.any(), // Stores { companyName, regNumber, country, location, domain, firstName, surname }
   }).index("by_email", ["email"]),
 
@@ -49,8 +50,18 @@ export default defineSchema({
     notificationPreferences: v.optional(v.any()), // JSON object for toggles
     twoFactorEnabled: v.optional(v.boolean()),
     twoFactorSecret: v.optional(v.string()),
+    // Platform superadmin. Only granted by an existing superadmin from the
+    // admin console (admin.setUserSuperAdmin) or the bootstrap CLI mutation.
+    isSuperAdmin: v.optional(v.boolean()),
+    // Brute-force protection for password / 2FA sign-in.
+    failedLoginAttempts: v.optional(v.number()),
+    lockedUntil: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_company", ["companyId"]).index("by_email", ["email"]),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_email", ["email"])
+    .index("by_setupToken", ["setupToken"])
+    .index("by_isSuperAdmin", ["isSuperAdmin"]),
 
   apiKeys: defineTable({
     companyId: v.id("companies"),
@@ -61,7 +72,9 @@ export default defineSchema({
     isActive: v.boolean(),
     expiresAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_company", ["companyId"]),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_keyHash", ["keyHash"]),
 
   balances: defineTable({
     companyId: v.id("companies"),
@@ -76,7 +89,9 @@ export default defineSchema({
     status: v.string(), // e.g., 'success', 'pending', 'failed'
     referenceId: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_company", ["companyId"]),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_referenceId", ["referenceId"]),
 
   jobs: defineTable({
     companyId: v.id("companies"),
@@ -105,7 +120,20 @@ export default defineSchema({
     email: v.string(),
     expiresAt: v.number(),
     createdAt: v.number(),
-  }).index("by_tokenHash", ["tokenHash"]),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_userId", ["userId"]),
+
+  // Short-lived, single-use proof that the password step of a 2FA sign-in
+  // succeeded. Only the SHA-256 hash of the challenge token is stored.
+  loginChallenges: defineTable({
+    tokenHash: v.string(),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+    attempts: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_userId", ["userId"]),
 
   // ── Registry Cache ──────────────────────────────────────────────────────────
   // Shared platform-level cache of registry lookups (BRS companies, IPRS

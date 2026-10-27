@@ -111,17 +111,12 @@ export const seedMockData = internalMutation({
       email: "admin@vpmtechlab.com",
       role: "admin",
       status: "active",
+      isSuperAdmin: true,
       createdAt: Date.now()
     });
 
-    // Insert API Key
-    await ctx.db.insert("apiKeys", {
-      companyId,
-      keyHash: "test_api_key_123",
-      name: "Live Key",
-      isActive: true,
-      createdAt: Date.now()
-    });
+    // No API key is seeded: a well-known key string would be a working
+    // credential. Generate keys from the dashboard (Settings → API).
 
     return { companyId, userId };
   },

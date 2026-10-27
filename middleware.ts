@@ -37,10 +37,9 @@ export function middleware(request: NextRequest) {
 
 	const isAuthenticated = !!session?.userId;
 	const isExpired = isSessionExpired(session);
-	const isSuperAdmin =
-		session?.isSuperAdmin ||
-		session?.email?.endsWith("@vpmtechlab.com") ||
-		session?.role === "superadmin";
+	// Routing hint only: this cookie is unsigned, so the admin UI re-checks the
+	// backend flag (SuperAdminGate) and every admin query enforces it server-side.
+	const isSuperAdmin = session?.isSuperAdmin === true;
 
 	// 0. Expired sessions are dead on every front: wipe the cookie and force
 	// a fresh sign-in (legacy sessions without an expiry are left alone).

@@ -1,5 +1,6 @@
 import { Aside } from "@/components/layout/aside";
 import { Topbar } from "@/components/layout/topbar";
+import { SuperAdminGate } from "@/components/layout/superadmin-gate";
 
 export default function AdminLayout({
   children,
@@ -7,6 +8,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
+    <SuperAdminGate>
     <div className="w-screen h-screen flex flex-row bg-white overflow-hidden">
       <Aside />
       <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-200 bg-white" style={{ zIndex: 10 }}>
@@ -16,5 +18,6 @@ export default function AdminLayout({
         </main>
       </div>
     </div>
+    </SuperAdminGate>
   );
 }

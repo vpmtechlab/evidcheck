@@ -30,9 +30,8 @@ export function Topbar() {
 		member?.companyId ? { sessionToken: getSessionToken() ?? "", companyId: member.companyId as Id<"companies"> } : "skip"
 	);
 
-	// Admins can switch between Admin and Client views
-	const canSwitchView =
-		member?.role === "admin" && (member?.email?.endsWith("@vpmtechlab.com") ?? false);
+	// Platform superadmins can switch between Admin and Client views
+	const canSwitchView = member?.isSuperAdmin === true;
 
 	const toggleViewMode = () => {
 		if (viewMode === "admin") {

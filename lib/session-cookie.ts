@@ -8,7 +8,7 @@ export interface SessionData {
 	role: string;
 	email: string;
 	isSuperAdmin?: boolean;
-	/** Absolute expiry as a Unix timestamp (ms). Sessions without one are treated as valid (legacy). */
+	/** Absolute expiry as a Unix timestamp (ms). Sessions without one are treated as expired. */
 	expiresAt?: number;
 }
 
@@ -35,7 +35,8 @@ export function isSessionExpired(
 	now: number = Date.now(),
 ): boolean {
 	if (!session) return true;
-	if (session.expiresAt == null) return false;
+	// Sessions without an expiry predate expiring sessions: treat as dead.
+	if (session.expiresAt == null) return true;
 	return session.expiresAt <= now;
 }
 

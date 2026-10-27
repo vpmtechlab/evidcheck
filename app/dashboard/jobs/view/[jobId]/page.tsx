@@ -47,7 +47,7 @@ export default function JobViewPage() {
     if (!job) return;
     setIsCancelling(true);
     try {
-      await cancelJob({ jobId: job._id });
+      await cancelJob({ sessionToken: getSessionToken() ?? "", jobId: job._id });
       toast.success("Verification job terminated successfully!");
       setShowCancelModal(false);
     } catch (err) {
@@ -84,8 +84,10 @@ export default function JobViewPage() {
     if (!content) return;
     const win = window.open("", "_blank");
     if (!win) { alert("Please allow popups to print"); return; }
+    // serviceType can come from REST API callers: escape it before writing HTML.
+    const title = String(job?.serviceType ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
     win.document.write(`<!DOCTYPE html><html><head>
-      <title>EvidCheck Verification — ${job?.serviceType}</title>
+      <title>EvidCheck Verification — ${title}</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>body{font-family:system-ui,sans-serif;padding:24px}@media print{.no-print{display:none!important}}</style>
       </head><body>${content.innerHTML}</body></html>`);

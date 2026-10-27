@@ -17,7 +17,6 @@ import type * as auth from "../auth.js";
 import type * as balances from "../balances.js";
 import type * as billing from "../billing.js";
 import type * as companies from "../companies.js";
-import type * as debug from "../debug.js";
 import type * as emails from "../emails.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
@@ -48,7 +47,6 @@ declare const fullApi: ApiFromModules<{
   balances: typeof balances;
   billing: typeof billing;
   companies: typeof companies;
-  debug: typeof debug;
   emails: typeof emails;
   http: typeof http;
   init: typeof init;

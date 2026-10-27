@@ -108,7 +108,6 @@ export default function UserManagementPage() {
 				firstName: firstName || "",
 				surname: surnameParts.join(" ") || "",
 				role: updatedUser.role,
-				performedBy: (member?.id || member?.userId) as Id<"users">,
 			});
 			toast.success("User updated successfully");
 			closeModal(() => setShowEditModal(false));

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
+import { getSessionToken } from "@/lib/session-token";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
@@ -41,7 +42,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
 
   const rolePermissions = useQuery(
     api.permissions.getRolePermissions,
-    companyId && isOpen ? { companyId, role: selectedRole } : "skip"
+    companyId && isOpen ? { sessionToken: getSessionToken() ?? "", companyId, role: selectedRole } : "skip"
   );
 
   const updateRolePermissions = useMutation(api.permissions.updateRolePermissions);
@@ -66,6 +67,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
     setIsSaving(true);
     try {
       await updateRolePermissions({
+        sessionToken: getSessionToken() ?? "",
         companyId,
         role: selectedRole,
         permissions: localPermissions,

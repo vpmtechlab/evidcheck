@@ -3,9 +3,28 @@
 import { action, internalAction } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const USD_TO_KES = 135; // Example rate: 1 USD = 135 KES
+const MIN_TOPUP_USD = 1;
+const MAX_TOPUP_USD = 100_000;
+
+/**
+ * Only lets Paystack redirect back to our own site after checkout, so the
+ * payment flow can't be used as an open redirect.
+ */
+function safeCallbackUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const site = process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.hostname !== "localhost") return undefined;
+    if (site && parsed.origin !== new URL(site).origin) return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Initializes a Paystack transaction on the backend.
@@ -23,6 +42,10 @@ export const initializeTransactionInternal = internalAction({
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackSecret) throw new Error("PAYSTACK_SECRET_KEY not set");
 
+    if (!Number.isFinite(args.amount) || args.amount < MIN_TOPUP_USD || args.amount > MAX_TOPUP_USD) {
+      throw new ConvexError(`Top-up amount must be between $${MIN_TOPUP_USD} and $${MAX_TOPUP_USD.toLocaleString()}.`);
+    }
+
     // Convert USD to KES for initialization (since the account is KES-based)
     const amountInKesCents = Math.round(args.amount * USD_TO_KES * 100);
 
@@ -36,7 +59,7 @@ export const initializeTransactionInternal = internalAction({
         email: args.email,
         amount: amountInKesCents, 
         currency: "KES",
-        callback_url: args.callback_url,
+        callback_url: safeCallbackUrl(args.callback_url),
         metadata: {
           companyId: args.companyId,
           userId: args.userId,
@@ -49,6 +72,12 @@ export const initializeTransactionInternal = internalAction({
     if (!data.status) {
       throw new Error(data.message || "Failed to initialize Paystack transaction.");
     }
+
+    await ctx.runMutation(internal.balances.recordPendingTopUp, {
+      companyId: args.companyId,
+      amount: args.amount,
+      referenceId: data.data.reference,
+    });
 
     return {
       access_code: data.data.access_code,
@@ -77,7 +106,9 @@ export const handleWebhook = internalAction({
       .update(args.body)
       .digest("hex");
 
-    if (hash !== args.signature) {
+    const expected = Buffer.from(hash, "hex");
+    const received = Buffer.from(args.signature, "hex");
+    if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
       console.error("Invalid Paystack webhook signature.");
       return { success: false, message: "Invalid signature" };
     }
@@ -87,8 +118,17 @@ export const handleWebhook = internalAction({
 
     // 2. Handle Charge Success
     if (event.event === "charge.success") {
-      const { reference, amount, metadata } = event.data;
-      const { companyId, userId, amount: displayAmount } = metadata;
+      const { reference, amount, currency, metadata } = event.data;
+      const { companyId, userId } = metadata ?? {};
+
+      if (currency !== "KES" || !Number.isFinite(amount) || amount <= 0 || !companyId || !userId) {
+        console.error(`Rejected malformed charge.success for reference ${reference}`);
+        return { success: false, message: "Malformed charge event" };
+      }
+
+      // Credit what Paystack actually charged (KES cents), never the
+      // metadata amount, which the payer's client could have chosen.
+      const creditUsd = Math.floor((amount / 100 / USD_TO_KES) * 100) / 100;
 
       console.log(`Processing successful payment for reference: ${reference}`);
 
@@ -96,8 +136,9 @@ export const handleWebhook = internalAction({
         await ctx.runMutation(internal.balances.addFunds, {
           companyId: companyId,
           userId: userId,
-          amount: Number(displayAmount || amount / 100),
+          amount: creditUsd,
           referenceId: reference,
+          requirePending: true,
         });
         return { success: true };
       } catch (error) {
@@ -105,42 +146,6 @@ export const handleWebhook = internalAction({
         return { success: false };
       }
     }
-
-    return { success: true };
-  },
-});
-
-/**
- * Legacy: Verifies a Paystack transaction directly (Manual check)
- */
-export const verifyTransaction = action({
-  args: {
-    reference: v.string(),
-    companyId: v.id("companies"),
-    userId: v.id("users"),
-    amount: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    if (!paystackSecret) throw new Error("PAYSTACK_SECRET_KEY not set");
-
-    const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(args.reference)}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${paystackSecret}` },
-      }
-    );
-
-    const data = await response.json();
-    if (!data.status || data.data.status !== "success") return { success: false };
-
-    await ctx.runMutation(internal.balances.addFunds, {
-      companyId: args.companyId,
-      userId: args.userId,
-      amount: args.amount,
-      referenceId: args.reference,
-    });
 
     return { success: true };
   },

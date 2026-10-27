@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { internal, api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -68,7 +68,7 @@ http.route({
       });
     }
 
-    if (apiKey.startsWith("evid_test_sk_") || apiKey.includes("test")) {
+    if (apiKey.startsWith("evid_test_sk_")) {
       return new Response(JSON.stringify({ 
         error: "Forbidden", 
         message: "Invalid Key Environment: Test/Sandbox API keys (evid_test_sk_*) cannot be used on the Production endpoint (api.evidcheck.com). Please send requests to the Sandbox endpoint (https://sandbox.evidcheck.com/v1/sandbox/verifications) or use a Live Production key." 
@@ -90,12 +90,11 @@ http.route({
         webhookUrl?: string;
       };
       
-      const result = await ctx.runAction(api.api_actions.verifyAndRun, {
+      const result = await ctx.runAction(internal.api_actions.verifyAndRun, {
         apiKey,
         serviceType: payload.serviceType || payload.type || payload.service_type || "national_id",
         entityData: payload.entityData || payload.data || payload.entity_data || {},
         webhookUrl: payload.webhookUrl || payload.webhook_url,
-        isSandbox: false,
       });
 
       return new Response(JSON.stringify(result), {
@@ -160,12 +159,11 @@ http.route({
         webhookUrl?: string;
       };
       
-      const result = await ctx.runAction(api.api_actions.verifyAndRun, {
+      const result = await ctx.runAction(internal.api_actions.verifyAndRun, {
         apiKey,
         serviceType: payload.serviceType || payload.type || payload.service_type || "national_id",
         entityData: payload.entityData || payload.data || payload.entity_data || {},
         webhookUrl: payload.webhookUrl || payload.webhook_url,
-        isSandbox: true,
       });
 
       return new Response(JSON.stringify({
@@ -217,7 +215,7 @@ http.route({
     const status = url.searchParams.get("status") || undefined;
     const serviceType = url.searchParams.get("serviceType") || undefined;
 
-    const result = await ctx.runAction(api.api_actions.listJobs, {
+    const result = await ctx.runAction(internal.api_actions.listJobs, {
       apiKey,
       page,
       limit,
@@ -252,7 +250,7 @@ http.route({
       });
     }
 
-    const result = await ctx.runAction(api.api_actions.getBalance, {
+    const result = await ctx.runAction(internal.api_actions.getBalance, {
       apiKey,
     });
 
@@ -289,7 +287,7 @@ http.route({
     const pathParts = url.pathname.split("/").filter(Boolean);
     const jobId = pathParts[pathParts.length - 1];
 
-    const result = await ctx.runAction(api.api_actions.getJobResult, {
+    const result = await ctx.runAction(internal.api_actions.getJobResult, {
       apiKey,
       jobId,
     });

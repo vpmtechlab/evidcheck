@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserCog, ShieldAlert } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
+import { getSessionToken } from "@/lib/session-token";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
@@ -40,13 +41,13 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
   // Get base role permissions
   const rolePermissions = useQuery(
     api.permissions.getRolePermissions,
-    companyId && user?.role && isOpen ? { companyId, role: user.role } : "skip"
+    companyId && user?.role && isOpen ? { sessionToken: getSessionToken() ?? "", companyId, role: user.role } : "skip"
   );
 
   // Get user specific custom permissions
   const queryCustomPermissions = useQuery(
     api.permissions.getUserCustomPermissions,
-    user?.id && isOpen ? { userId: user.id as Id<"users"> } : "skip"
+    user?.id && isOpen ? { sessionToken: getSessionToken() ?? "", userId: user.id as Id<"users"> } : "skip"
   );
 
   const updateUserCustomPermissions = useMutation(api.permissions.updateUserCustomPermissions);
@@ -90,6 +91,7 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
     setIsSaving(true);
     try {
       await updateUserCustomPermissions({
+        sessionToken: getSessionToken() ?? "",
         userId: user.id as Id<"users">,
         customPermissions: useCustom ? localPermissions : undefined,
       });

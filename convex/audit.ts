@@ -3,7 +3,7 @@ import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
-import { requireCompany, requireSuperAdmin, requireSelfOrCompanyMember, validateSession } from "./session";
+import { requireCompany, requireSuperAdmin, requireSelfOrCompanyAdmin, validateSession } from "./session";
 
 /**
  * Internal helper to record an audit log.
@@ -134,7 +134,8 @@ export async function recordNotification(ctx: MutationCtx, args: {
 export const getActiveNotificationsByUser = query({
   args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
-    await requireSelfOrCompanyMember(ctx, args.sessionToken, args.userId);
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== args.userId) throw new ConvexError("Forbidden.");
     return await ctx.db
       .query("notifications")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -173,7 +174,8 @@ export const markAsRead = mutation({
   handler: async (ctx, args) => {
     const notification = await ctx.db.get(args.notificationId);
     if (!notification) throw new ConvexError("Notification not found");
-    await requireSelfOrCompanyMember(ctx, args.sessionToken, notification.userId);
+    const session = await validateSession(ctx, args.sessionToken);
+    if (session.userId !== notification.userId) throw new ConvexError("Forbidden.");
     await ctx.db.patch(args.notificationId, { isRead: true });
   },
 });
@@ -213,7 +215,7 @@ export async function notifyCompanyUsers(ctx: MutationCtx, args: {
 export const getLoginHistoryByUser = query({
   args: { sessionToken: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
-    await requireSelfOrCompanyMember(ctx, args.sessionToken, args.userId);
+    await requireSelfOrCompanyAdmin(ctx, args.sessionToken, args.userId);
     const logs = await ctx.db
       .query("auditLogs")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

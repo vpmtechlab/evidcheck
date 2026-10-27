@@ -14,6 +14,8 @@ export interface Member {
 	companyId?: string;
 	companyName?: string;
 	profile_image_url?: string;
+	/** Platform superadmin flag, sourced from the backend user row. */
+	isSuperAdmin?: boolean;
 	[key: string]: unknown;
 }
 

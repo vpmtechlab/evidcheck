@@ -8,7 +8,7 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import { useMutation, useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
@@ -36,7 +36,6 @@ export default function InviteUserModal({
 }: InviteUserModalProps) {
 	const { member } = useApp();
 	const inviteUser = useMutation(api.users.inviteUser);
-	const sendEmail = useAction(api.emails.sendWelcomeEmail);
 
 	const [form, setForm] = useState<InviteFormValues>(EMPTY_FORM);
 	const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +56,7 @@ export default function InviteUserModal({
 
 		setIsLoading(true);
 		try {
-			const result = await inviteUser({
+			await inviteUser({
 				sessionToken: getSessionToken() ?? "",
 				companyId: member.companyId as Id<"companies">,
 				firstName: form.firstName,
@@ -66,21 +65,8 @@ export default function InviteUserModal({
 				role: form.role,
 			});
 
-			toast.success("User invited! Sending welcome email...");
-
-			const emailResult = await sendEmail({
-				email: form.email,
-				firstName: form.firstName,
-				tempPassword: result.tempPassword,
-				setupToken: result.setupToken,
-			});
-
-			if (emailResult.sent) {
-				toast.success(`Welcome email sent to ${form.email}`);
-			} else {
-				toast.warning(`User invited, but email delivery failed: ${emailResult.error}`);
-				console.warn("Email failed:", emailResult.error, "Temp Pass was:", result.tempPassword);
-			}
+			// The backend emails the setup link itself; credentials never reach this browser.
+			toast.success(`User invited! A welcome email is on its way to ${form.email}.`);
 
 			setForm(EMPTY_FORM);
 			onClose();

@@ -47,20 +47,36 @@ export const addFunds = internalMutation({
     userId: v.id("users"),
     amount: v.number(),
     referenceId: v.optional(v.string()),
+    // When true, the reference must match a checkout we initialized
+    // (recordPendingTopUp) for this same company.
+    requirePending: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // 0. Prevent double-spending if reference is provided
+    if (!Number.isFinite(args.amount) || args.amount <= 0) {
+      throw new Error("Top-up amount must be a positive number");
+    }
+
+    // 0. Each payment reference credits exactly once, platform-wide.
+    let pending: Doc<"transactions"> | null = null;
     if (args.referenceId) {
       const existing = await ctx.db
         .query("transactions")
-        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
-        .filter((q) => q.eq(q.field("referenceId"), args.referenceId))
+        .withIndex("by_referenceId", (q) => q.eq("referenceId", args.referenceId))
         .first();
 
-      if (existing) {
+      if (existing && existing.status !== "pending") {
         console.warn(`Duplicate transaction attempt: ${args.referenceId}`);
         return false;
       }
+      if (existing && existing.companyId !== args.companyId) {
+        console.error(`Reference ${args.referenceId} belongs to another company`);
+        return false;
+      }
+      pending = existing;
+    }
+    if (args.requirePending && !pending) {
+      console.error(`No initialized checkout for reference ${args.referenceId}`);
+      return false;
     }
 
     const balance = await ctx.db
@@ -81,15 +97,19 @@ export const addFunds = internalMutation({
       });
     }
 
-    // Record the transaction
-    await ctx.db.insert("transactions", {
-      companyId: args.companyId,
-      type: "top_up",
-      amount: args.amount,
-      status: "success",
-      referenceId: args.referenceId,
-      createdAt: Date.now(),
-    });
+    // Record the transaction (settling the pending checkout row if any)
+    if (pending) {
+      await ctx.db.patch(pending._id, { amount: args.amount, status: "success" });
+    } else {
+      await ctx.db.insert("transactions", {
+        companyId: args.companyId,
+        type: "top_up",
+        amount: args.amount,
+        status: "success",
+        referenceId: args.referenceId,
+        createdAt: Date.now(),
+      });
+    }
 
     // Record personalized notifications for the performer and the rest of the company
     const performer = await ctx.db.get(args.userId);
@@ -104,5 +124,27 @@ export const addFunds = internalMutation({
     });
 
     return true;
+  },
+});
+
+/**
+ * Records a Paystack checkout we initialized, so the webhook only credits
+ * references that started in our own flow, for the company that started them.
+ */
+export const recordPendingTopUp = internalMutation({
+  args: {
+    companyId: v.id("companies"),
+    amount: v.number(),
+    referenceId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("transactions", {
+      companyId: args.companyId,
+      type: "top_up",
+      amount: args.amount,
+      status: "pending",
+      referenceId: args.referenceId,
+      createdAt: Date.now(),
+    });
   },
 });

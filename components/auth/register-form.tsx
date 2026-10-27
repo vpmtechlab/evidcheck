@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
@@ -19,7 +19,6 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
 	const startRegistration = useMutation(api.users.startRegistration);
 	const verifyOTP = useMutation(api.users.verifyOTP);
 	const completeRegistration = useMutation(api.users.completeRegistration);
-	const sendOTPEmail = useAction(api.emails.sendOTPEmail);
 
 	const [step, setStep] = useState(1);
 	const [isLoading, setIsLoading] = useState(false);
@@ -68,9 +67,9 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
 		}
 		setIsLoading(true);
 		try {
+			// The backend emails the code; it is never returned to the browser.
 			const result = await startRegistration({ ...company, ...profile });
 			if (result.success) {
-				await sendOTPEmail({ email, firstName, otpCode: result.otpCode });
 				toast.success("Verification code sent to your email!");
 				setStep(3);
 			}
@@ -88,7 +87,11 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
 		}
 		setIsLoading(true);
 		try {
-			await verifyOTP({ email: profile.email, code: otpCode });
+			const result = await verifyOTP({ email: profile.email, code: otpCode });
+			if (!result.success) {
+				toast.error(result.error ?? "Invalid verification code.");
+				return;
+			}
 			toast.success("Email verified successfully!");
 			setStep(4);
 		} catch (error) {

@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useApp, Member } from "@/components/providers/app-provider";
-import { Id } from "@/convex/_generated/dataModel";
 import { getErrorMessage } from "@/lib/utils";
 import { setSessionCookie, createSessionExpiry, STORAGE_KEYS } from "@/lib/session-cookie";
 import { setSessionToken } from "@/lib/session-token";
@@ -25,6 +24,7 @@ interface LoginResponse {
 	last_name: string;
 	needsPasswordChange: boolean;
 	has_completed_tour: boolean;
+	isSuperAdmin: boolean;
 	sessionToken: string;
 	sessionExpiresAt: number;
 }
@@ -34,7 +34,8 @@ export function LoginForm() {
 	const [password, setPassword] = useState("");
 	const [otpCode, setOtpCode] = useState("");
 	const [step, setStep] = useState<"login" | "2fa">("login");
-	const [tempUserId, setTempUserId] = useState<Id<"users"> | null>(null);
+	// Single-use proof that the password step succeeded (2FA sign-in only).
+	const [challengeToken, setChallengeToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 
 	const router = useRouter();
@@ -57,8 +58,13 @@ export function LoginForm() {
 				location: "Web Access" // Placeholder for now
 			});
 
+			if ("error" in result) {
+				toast.error(result.error);
+				return;
+			}
+
 			if ("twoFactorRequired" in result && result.twoFactorRequired) {
-				setTempUserId(result.userId as Id<"users">);
+				setChallengeToken(result.challengeToken);
 				setStep("2fa");
 				toast.info("Two-Factor Authentication Required");
 				return;
@@ -73,7 +79,7 @@ export function LoginForm() {
 	};
 
 	const handleVerify2FA = async () => {
-		if (!otpCode || otpCode.length < 6 || !tempUserId) {
+		if (!otpCode || otpCode.length < 6 || !challengeToken) {
 			toast.warning("Please enter a valid 6-digit code.");
 			return;
 		}
@@ -81,9 +87,20 @@ export function LoginForm() {
 		setIsLoading(true);
 		try {
 			const result = await verify2FA({
-				userId: tempUserId,
+				challengeToken,
 				code: otpCode,
 			});
+			if ("error" in result && result.error) {
+				const message = result.error;
+				toast.error(message);
+				// The challenge is burned after too many bad codes: start over.
+				if (message.startsWith("Too many")) {
+					setChallengeToken(null);
+					setOtpCode("");
+					setStep("login");
+				}
+				return;
+			}
 			completeLogin(result as LoginResponse);
 		} catch (error) {
 			toast.error(getErrorMessage(error));
@@ -99,7 +116,7 @@ export function LoginForm() {
 			companyId: result.companyId,
 			role: result.role,
 			email: result.email,
-			isSuperAdmin: result.email.includes("@vpmtechlab.com") || result.role === "superadmin",
+			isSuperAdmin: result.isSuperAdmin === true,
 			expiresAt,
 		});
 
@@ -116,6 +133,7 @@ export function LoginForm() {
 			companyId: result.companyId,
 			needsPasswordChange: result.needsPasswordChange,
 			has_completed_tour: result.has_completed_tour,
+			isSuperAdmin: result.isSuperAdmin === true,
 		};
 		setMember(memberInfo);
 
@@ -130,7 +148,7 @@ export function LoginForm() {
 			return;
 		}
 
-		if (result.email.includes("@vpmtechlab.com")) {
+		if (result.isSuperAdmin) {
 			router.push("/admin");
 		} else {
 			router.push("/dashboard");

@@ -57,7 +57,6 @@ export function ProfileSettings() {
         role: profileData.role,
         phone: profileData.phone,
         bio: profileData.bio,
-        performedBy: member.id as Id<"users">,
       });
       
       // Update local context

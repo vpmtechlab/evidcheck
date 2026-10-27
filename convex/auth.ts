@@ -2,7 +2,8 @@ import { mutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from "otplib";
 import { recordAuditLog } from "./audit";
-import { validateSession, issueSession } from "./session";
+import { validateSession, issueSession, sha256hex, isSuperAdminUser, revokeUserSessions } from "./session";
+import { assertNotLocked, recordLoginFailure, MAX_CHALLENGE_ATTEMPTS } from "./users";
 
 // Standard "Authenticator" configuration for Google Authenticator / Authy compatibility
 const totp = new TOTP({
@@ -92,23 +93,46 @@ export const disable2FA = mutation({
       twoFactorEnabled: false,
       twoFactorSecret: undefined,
     });
+    // Weakening sign-in security signs out every other device.
+    await revokeUserSessions(ctx, args.userId, session.tokenHash);
+    await recordAuditLog(ctx, {
+      companyId: session.companyId,
+      userId: args.userId,
+      action: "2FA_DISABLED",
+      details: "Two-factor authentication was disabled.",
+    });
     return true;
   },
 });
 
 /**
- * Verify a 2FA code during login.
+ * Verify a 2FA code during login. Requires the single-use challenge token
+ * that `users.login` issues after a correct password, so the TOTP code is a
+ * true second factor rather than a replacement for the password.
  */
 export const verify2FACode = mutation({
-  args: { 
-    userId: v.id("users"), 
-    code: v.string() 
+  args: {
+    challengeToken: v.string(),
+    code: v.string()
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const challengeHash = await sha256hex(args.challengeToken);
+    const challenge = await ctx.db
+      .query("loginChallenges")
+      .withIndex("by_tokenHash", (q) => q.eq("tokenHash", challengeHash))
+      .first();
+
+    if (!challenge || challenge.expiresAt <= Date.now()) {
+      if (challenge) await ctx.db.delete(challenge._id);
+      throw new ConvexError("Your sign-in attempt has expired. Please sign in again.");
+    }
+
+    const user = await ctx.db.get(challenge.userId);
     if (!user || !user.twoFactorSecret || !user.twoFactorEnabled) {
+      await ctx.db.delete(challenge._id);
       throw new ConvexError("2FA is not enabled");
     }
+    assertNotLocked(user);
 
     // IMPORTANT: result is an object { valid: true/false }
     const result = await totp.verify(args.code, {
@@ -116,8 +140,19 @@ export const verify2FACode = mutation({
     });
 
     if (!result.valid) {
-      throw new ConvexError("Invalid Code");
+      // Returned, not thrown, so the attempt counters actually persist.
+      const attempts = challenge.attempts + 1;
+      if (attempts >= MAX_CHALLENGE_ATTEMPTS) {
+        await ctx.db.delete(challenge._id);
+        await recordLoginFailure(ctx, user._id);
+        return { error: "Too many invalid codes. Please sign in again." };
+      }
+      await ctx.db.patch(challenge._id, { attempts });
+      return { error: "Invalid Code" };
     }
+
+    // Single use: burn the challenge before issuing the session.
+    await ctx.db.delete(challenge._id);
 
     // Record Login in Audit Logs after successful 2FA verification
     await recordAuditLog(ctx, {
@@ -139,6 +174,7 @@ export const verify2FACode = mutation({
       last_name: user.surname,
       needsPasswordChange: user.needsPasswordChange ?? false,
       has_completed_tour: user.has_completed_tour ?? false,
+      isSuperAdmin: isSuperAdminUser(user),
       ...(await issueSession(ctx, user)),
     };
   },
