@@ -50,6 +50,10 @@ export default defineSchema({
     notificationPreferences: v.optional(v.any()), // JSON object for toggles
     twoFactorEnabled: v.optional(v.boolean()),
     twoFactorSecret: v.optional(v.string()),
+    // Secret issued by generate2FASecret, awaiting confirmation by
+    // verifyAndEnable2FA. Never taken from the client.
+    pendingTwoFactorSecret: v.optional(v.string()),
+    pendingTwoFactorExpires: v.optional(v.number()),
     // Platform superadmin. Only granted by an existing superadmin from the
     // admin console (admin.setUserSuperAdmin) or the bootstrap CLI mutation.
     isSuperAdmin: v.optional(v.boolean()),

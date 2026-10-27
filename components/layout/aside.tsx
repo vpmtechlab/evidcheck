@@ -1,4 +1,5 @@
 "use client";
+import { hasPermission } from "@/lib/permissions";
 
 import React, { useContext, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,7 +37,12 @@ export function Aside() {
   };
 
   const isMobile = device === "sm";
-  const navGroups = viewMode === "admin" ? adminNavGroups : clientNavGroups;
+  const navGroups = (viewMode === "admin" ? adminNavGroups : clientNavGroups)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || hasPermission(member, item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const handleLogout = () => {
     clearClientSession();

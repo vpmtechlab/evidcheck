@@ -16,6 +16,8 @@ export interface Member {
 	profile_image_url?: string;
 	/** Platform superadmin flag, sourced from the backend user row. */
 	isSuperAdmin?: boolean;
+	/** Effective permissions from the backend (convex/session.ts). */
+	permissions?: string[];
 	[key: string]: unknown;
 }
 

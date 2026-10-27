@@ -106,6 +106,7 @@ export const getSessionUser = query({
 			has_completed_tour: user.has_completed_tour ?? false,
 			twoFactorEnabled: !!user.twoFactorEnabled,
 			isSuperAdmin: user.isSuperAdmin === true,
+			permissions: await getEffectivePermissions(ctx, user),
 		};
 	},
 });
@@ -158,12 +159,71 @@ export function isSuperAdminUser(user: Doc<"users"> | null | undefined): boolean
 	return user?.isSuperAdmin === true;
 }
 
+// ── Permissions ─────────────────────────────────────────────────────────────
+// Company admins and platform superadmins always hold every permission, so an
+// admin can never lock themselves out. Everyone else gets, in order: their
+// per-user override, their company's role override, or the member defaults.
+
+export const PERMISSIONS_LIST = [
+	"view_users",
+	"manage_users",
+	"run_verifications",
+	"view_history",
+	"view_billing",
+	"manage_billing",
+	"manage_settings",
+];
+
+export const DEFAULT_MEMBER_PERMISSIONS = ["view_users", "run_verifications", "view_history"];
+
+/** The permissions a user actually holds (see the rules above). */
+export async function getEffectivePermissions(
+	ctx: QueryCtx | MutationCtx,
+	user: Doc<"users">,
+): Promise<string[]> {
+	if (isSuperAdminUser(user) || isCompanyAdminRole(user.role)) return [...PERMISSIONS_LIST];
+	if (user.customPermissions) return user.customPermissions;
+	const roleRecord = await ctx.db
+		.query("rolePermissions")
+		.withIndex("by_company_and_role", (q) =>
+			q.eq("companyId", user.companyId).eq("role", user.role),
+		)
+		.first();
+	return roleRecord?.permissions ?? DEFAULT_MEMBER_PERMISSIONS;
+}
+
+/** requireCompany + the caller must hold `permission`. */
+export async function requirePermission(
+	ctx: QueryCtx | MutationCtx,
+	sessionToken: string | undefined,
+	companyId: Id<"companies"> | string,
+	permission: string,
+): Promise<SessionDoc> {
+	const session = await requireCompany(ctx, sessionToken, companyId);
+	const user = await ctx.db.get(session.userId);
+	const permissions = user ? await getEffectivePermissions(ctx, user) : [];
+	if (!permissions.includes(permission)) {
+		throw new ConvexError(`Forbidden: you don't have the "${permission}" permission.`);
+	}
+	return session;
+}
+
+/** Internal: requirePermission for actions (which have no ctx.db). */
+export const resolveWithPermission = internalQuery({
+	args: { sessionToken: v.string(), companyId: v.id("companies"), permission: v.string() },
+	handler: async (ctx, args) => {
+		return await requirePermission(ctx, args.sessionToken, args.companyId, args.permission);
+	},
+});
+
 /** Strips credentials and secrets from a user row before it leaves the backend. */
 export function toPublicUser(user: Doc<"users">) {
 	const {
 		password: _password,
 		passwordHash: _passwordHash,
 		twoFactorSecret: _twoFactorSecret,
+		pendingTwoFactorSecret: _pendingTwoFactorSecret,
+		pendingTwoFactorExpires: _pendingTwoFactorExpires,
 		setupToken: _setupToken,
 		setupTokenExpires: _setupTokenExpires,
 		failedLoginAttempts: _failedLoginAttempts,

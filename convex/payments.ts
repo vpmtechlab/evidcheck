@@ -173,10 +173,12 @@ export const initializeTransaction = action({
     publicKey: string | undefined;
     authorization_url: string;
   }> => {
-    const session = await ctx.runQuery(internal.session.resolve, {
+    const session = await ctx.runQuery(internal.session.resolveWithPermission, {
       sessionToken: args.sessionToken,
+      companyId: args.companyId,
+      permission: "manage_billing",
     });
-    if (session.companyId !== args.companyId || session.userId !== args.userId) {
+    if (session.userId !== args.userId) {
       throw new ConvexError("Forbidden.");
     }
     return await ctx.runAction(internal.payments.initializeTransactionInternal, {

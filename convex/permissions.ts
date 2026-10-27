@@ -1,22 +1,15 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
+  PERMISSIONS_LIST,
+  DEFAULT_MEMBER_PERMISSIONS,
+  isCompanyAdminRole,
   assertCompanyRole,
   requireCompany,
   requireCompanyAdmin,
   requireSelfOrCompanyMember,
 } from "./session";
 import { recordAuditLog } from "./audit";
-
-export const PERMISSIONS_LIST = [
-  "view_users",
-  "manage_users",
-  "run_verifications",
-  "view_history",
-  "view_billing",
-  "manage_billing",
-  "manage_settings",
-];
 
 /** Throws unless every entry is a known permission. */
 function assertKnownPermissions(permissions: string[] | undefined): void {
@@ -25,12 +18,6 @@ function assertKnownPermissions(permissions: string[] | undefined): void {
   }
 }
 
-const DEFAULT_ADMIN_PERMISSIONS = PERMISSIONS_LIST;
-const DEFAULT_COMPLIANCE_OFFICER_PERMISSIONS = [
-  "view_users",
-  "run_verifications",
-  "view_history",
-];
 
 export const getRolePermissions = query({
   args: {
@@ -47,16 +34,11 @@ export const getRolePermissions = query({
       )
       .first();
 
-    if (roleRecord) {
-      return roleRecord.permissions;
+    // Admins always hold every permission (see session.getEffectivePermissions).
+    if (isCompanyAdminRole(args.role)) {
+      return PERMISSIONS_LIST;
     }
-
-    // Return defaults if no custom overrides exist for this role at this company
-    if (args.role === "Admin") {
-      return DEFAULT_ADMIN_PERMISSIONS;
-    } else {
-      return DEFAULT_COMPLIANCE_OFFICER_PERMISSIONS;
-    }
+    return roleRecord?.permissions ?? DEFAULT_MEMBER_PERMISSIONS;
   },
 });
 
@@ -70,6 +52,9 @@ export const updateRolePermissions = mutation({
   handler: async (ctx, args) => {
     const session = await requireCompanyAdmin(ctx, args.sessionToken, args.companyId);
     assertCompanyRole(args.role);
+    if (isCompanyAdminRole(args.role)) {
+      throw new ConvexError("Admins always have every permission; this role can't be restricted.");
+    }
     assertKnownPermissions(args.permissions);
     const existing = await ctx.db
       .query("rolePermissions")

@@ -3,7 +3,7 @@ import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
-import { requireCompany, requireSuperAdmin, requireSelfOrCompanyAdmin, validateSession } from "./session";
+import { requirePermission, requireSuperAdmin, requireSelfOrCompanyAdmin, validateSession } from "./session";
 
 /**
  * Internal helper to record an audit log.
@@ -53,7 +53,7 @@ export const getAuditLogsByCompany = query({
     paginationOpts: paginationOptsValidator 
   },
   handler: async (ctx, args) => {
-    await requireCompany(ctx, args.sessionToken, args.companyId);
+    await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
     const logs = await ctx.db
       .query("auditLogs")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))

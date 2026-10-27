@@ -3,7 +3,7 @@ import { v, ConvexError } from "convex/values";
 import { Id, Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { recordAuditLog, recordNotification } from "./audit";
-import { requireCompany, validateSession } from "./session";
+import { requireCompany, requirePermission, validateSession } from "./session";
 
 // ── Registry Cache (30-day TTL) ─────────────────────────────────────────────
 // Shared platform cache for registry lookups. Repeat searches are served from
@@ -710,7 +710,7 @@ export const getVerificationByIdInternal = internalQuery({
 export const getJobStats = query({
 	args: { sessionToken: v.string(), companyId: v.id("companies") },
 	handler: async (ctx, args) => {
-		await requireCompany(ctx, args.sessionToken, args.companyId);
+		await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
 		const jobs = await ctx.db
 			.query("jobs")
 			.withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -1252,10 +1252,12 @@ export const runVerification = action({
 		fromCache: boolean;
 		data: Record<string, unknown>;
 	}> => {
-		const session = await ctx.runQuery(internal.session.resolve, {
+		const session = await ctx.runQuery(internal.session.resolveWithPermission, {
 			sessionToken: args.sessionToken,
+			companyId: args.companyId,
+			permission: "run_verifications",
 		});
-		if (session.companyId !== args.companyId || session.userId !== args.userId) {
+		if (session.userId !== args.userId) {
 			throw new ConvexError("Forbidden.");
 		}
 		return await ctx.runAction(internal.verifications.runVerificationInternal, {
@@ -1288,7 +1290,7 @@ export const getVerificationsByCompany = query({
 		ctx,
 		args,
 	): Promise<Array<Doc<"jobs"> & { serviceName: string }>> => {
-		await requireCompany(ctx, args.sessionToken, args.companyId);
+		await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
 		const { sessionToken: _sessionToken, ...rest } = args;
 		return await ctx.runQuery(internal.verifications.getVerificationsByCompanyInternal, rest);
 	},
@@ -1305,7 +1307,7 @@ export const getVerificationById = query({
 			jobId: args.jobId,
 		});
 		if (!job) return null;
-		await requireCompany(ctx, args.sessionToken, job.companyId);
+		await requirePermission(ctx, args.sessionToken, job.companyId, "view_history");
 		return job;
 	},
 });

@@ -25,6 +25,7 @@ interface LoginResponse {
 	needsPasswordChange: boolean;
 	has_completed_tour: boolean;
 	isSuperAdmin: boolean;
+	permissions: string[];
 	sessionToken: string;
 	sessionExpiresAt: number;
 }
@@ -134,6 +135,7 @@ export function LoginForm() {
 			needsPasswordChange: result.needsPasswordChange,
 			has_completed_tour: result.has_completed_tour,
 			isSuperAdmin: result.isSuperAdmin === true,
+			permissions: result.permissions,
 		};
 		setMember(memberInfo);
 

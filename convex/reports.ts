@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { recordAuditLog } from "./audit";
-import { requireCompany } from "./session";
+import { requirePermission } from "./session";
 
 /**
  * Record a new report generation entry for the caller's company.
@@ -17,7 +17,7 @@ export const createReport = mutation({
     config: v.any(),
   },
   handler: async (ctx, args) => {
-    const session = await requireCompany(ctx, args.sessionToken, args.companyId);
+    const session = await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
     const reportId = await ctx.db.insert("generatedReports", {
       companyId: args.companyId,
       userId: session.userId,
@@ -52,7 +52,7 @@ export const listReports = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireCompany(ctx, args.sessionToken, args.companyId);
+    await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
     return await ctx.db
       .query("generatedReports")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -69,7 +69,7 @@ export const deleteReport = mutation({
   handler: async (ctx, args) => {
     const report = await ctx.db.get(args.reportId);
     if (!report) return;
-    await requireCompany(ctx, args.sessionToken, report.companyId);
+    await requirePermission(ctx, args.sessionToken, report.companyId, "view_history");
     await ctx.db.delete(args.reportId);
   },
 });

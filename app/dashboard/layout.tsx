@@ -1,6 +1,7 @@
 import { Aside } from "@/components/layout/aside";
 import { Topbar } from "@/components/layout/topbar";
 import { AppTour } from "@/components/dashboard/app-tour";
+import { PermissionGate } from "@/components/layout/permission-gate";
 
 export default function DashboardLayout({
   children,
@@ -13,7 +14,7 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-200 bg-white" style={{ zIndex: 10 }}>
         <Topbar />
         <main className="w-full flex-1 overflow-y-auto custom-scrollbar bg-white relative p-4 md:p-6">
-          {children}
+          <PermissionGate>{children}</PermissionGate>
         </main>
       </div>
       <AppTour />

@@ -122,7 +122,6 @@ export function SecuritySettings() {
 			await verifyAndEnable({
 				sessionToken: getSessionToken() ?? "",
 				userId: member.id as Id<"users">,
-				secret: setupData.secret,
 				code: otpCode,
 			});
 			toast.success("Two-Factor Authentication enabled!");

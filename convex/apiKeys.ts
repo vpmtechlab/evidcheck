@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { recordAuditLog } from "./audit";
 import { sha256hex, requireCompany, requireCompanyAdmin } from "./session";
@@ -20,7 +20,7 @@ export const list = query({
       _id: k._id,
       name: k.name,
       mode: k.mode,
-      keyPrefix: k.keyPrefix ?? `${k.keyHash.slice(0, 15)}…`,
+      keyPrefix: k.keyPrefix ?? "legacy key",
       isActive: k.isActive,
       createdAt: k.createdAt,
     }));
@@ -95,5 +95,50 @@ export const revoke = mutation({
     });
 
     return true;
+  },
+});
+
+/** Known key strings that must never authenticate (e.g. old seed data). */
+const BLOCKED_KEYS = new Set(["test_api_key_123"]);
+
+/** True when keyHash already holds a SHA-256 hex digest. */
+function isHashed(keyHash: string): boolean {
+  return /^[0-9a-f]{64}$/.test(keyHash);
+}
+
+/**
+ * One-off migration: hash every legacy plaintext API key in place (so the raw
+ * key no longer sits in the database or backups) and deactivate known seeded
+ * keys. Idempotent. Run from the CLI:
+ *   npx convex run apiKeys:migrateLegacyKeys
+ */
+export const migrateLegacyKeys = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const keys = await ctx.db.query("apiKeys").take(1000);
+    let hashed = 0;
+    let blocked = 0;
+    for (const key of keys) {
+      if (isHashed(key.keyHash)) continue;
+      const raw = key.keyHash;
+      const isBlocked = BLOCKED_KEYS.has(raw);
+      await ctx.db.patch(key._id, {
+        keyHash: await sha256hex(raw),
+        keyPrefix: key.keyPrefix ?? `${raw.slice(0, 9)}…${raw.slice(-4)}`,
+        ...(isBlocked ? { isActive: false } : {}),
+      });
+      hashed++;
+      if (isBlocked) {
+        blocked++;
+        await recordAuditLog(ctx, {
+          companyId: key.companyId,
+          action: "API_KEY_REVOKED",
+          entityId: key._id,
+          entityType: "apiKey",
+          details: `Revoked well-known seeded API key: ${key.name}`,
+        });
+      }
+    }
+    return { scanned: keys.length, hashed, blocked };
   },
 });

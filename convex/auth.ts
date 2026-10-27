@@ -1,11 +1,13 @@
-import { mutation } from "./_generated/server";
+import { mutation, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from "otplib";
 import { recordAuditLog } from "./audit";
-import { validateSession, issueSession, sha256hex, isSuperAdminUser, revokeUserSessions } from "./session";
+import { validateSession, issueSession, sha256hex, isSuperAdminUser, revokeUserSessions, getEffectivePermissions } from "./session";
 import { assertNotLocked, recordLoginFailure, MAX_CHALLENGE_ATTEMPTS } from "./users";
 
 // Standard "Authenticator" configuration for Google Authenticator / Authy compatibility
+const PENDING_2FA_TTL_MS = 10 * 60 * 1000;
+
 const totp = new TOTP({
   crypto: new NobleCryptoPlugin(),
   base32: new ScureBase32Plugin(),
@@ -24,6 +26,9 @@ export const generate2FASecret = mutation({
     }
     const user = await ctx.db.get(args.userId);
     if (!user) throw new ConvexError("User not found");
+    if (user.twoFactorEnabled) {
+      throw new ConvexError("2FA is already enabled. Disable it first to set up a new authenticator.");
+    }
 
     const secret = totp.generateSecret();
     const otpauth = totp.toURI({
@@ -31,7 +36,14 @@ export const generate2FASecret = mutation({
       label: user.email,
       secret,
     });
-    
+
+    // The server remembers which secret it issued; enabling 2FA uses this,
+    // never a secret supplied by the client.
+    await ctx.db.patch(args.userId, {
+      pendingTwoFactorSecret: secret,
+      pendingTwoFactorExpires: Date.now() + PENDING_2FA_TTL_MS,
+    });
+
     return { secret, otpauth };
   },
 });
@@ -43,7 +55,9 @@ export const verifyAndEnable2FA = mutation({
   args: {
     sessionToken: v.string(),
     userId: v.id("users"),
-    secret: v.string(),
+    // Ignored (kept so older clients still validate); the server uses the
+    // secret it issued in generate2FASecret.
+    secret: v.optional(v.string()),
     code: v.string()
   },
   handler: async (ctx, args) => {
@@ -51,10 +65,16 @@ export const verifyAndEnable2FA = mutation({
     if (session.userId !== args.userId) {
       throw new ConvexError("Forbidden.");
     }
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new ConvexError("User not found");
+    if (user.twoFactorEnabled) throw new ConvexError("2FA is already enabled.");
+    const secret = user.pendingTwoFactorSecret;
+    if (!secret || !user.pendingTwoFactorExpires || user.pendingTwoFactorExpires < Date.now()) {
+      throw new ConvexError("2FA setup expired. Please start again.");
+    }
+
     // IMPORTANT: verify() in v13 returns an object { valid: boolean, ... }
-    const result = await totp.verify(args.code, {
-      secret: args.secret,
-    });
+    const result = await totp.verify(args.code, { secret });
 
     if (!result.valid) {
       throw new ConvexError("Invalid Code");
@@ -62,7 +82,15 @@ export const verifyAndEnable2FA = mutation({
 
     await ctx.db.patch(args.userId, {
       twoFactorEnabled: true,
-      twoFactorSecret: args.secret,
+      twoFactorSecret: secret,
+      pendingTwoFactorSecret: undefined,
+      pendingTwoFactorExpires: undefined,
+    });
+    await recordAuditLog(ctx, {
+      companyId: session.companyId,
+      userId: args.userId,
+      action: "2FA_ENABLED",
+      details: "Two-factor authentication was enabled.",
     });
 
     return true;
@@ -175,7 +203,33 @@ export const verify2FACode = mutation({
       needsPasswordChange: user.needsPasswordChange ?? false,
       has_completed_tour: user.has_completed_tour ?? false,
       isSuperAdmin: isSuperAdminUser(user),
+      permissions: await getEffectivePermissions(ctx, user),
       ...(await issueSession(ctx, user)),
     };
+  },
+});
+
+/**
+ * One-off cleanup: drop 2FA secrets left on accounts where 2FA is off, and
+ * expired pending enrollments. Idempotent. Run from the CLI:
+ *   npx convex run auth:clearStaleTwoFactorSecrets
+ */
+export const clearStaleTwoFactorSecrets = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let cleared = 0;
+    for await (const user of ctx.db.query("users")) {
+      const staleSecret = !user.twoFactorEnabled && user.twoFactorSecret;
+      const stalePending =
+        user.pendingTwoFactorSecret && (user.pendingTwoFactorExpires ?? 0) < Date.now();
+      if (staleSecret || stalePending) {
+        await ctx.db.patch(user._id, {
+          ...(staleSecret ? { twoFactorSecret: undefined } : {}),
+          ...(stalePending ? { pendingTwoFactorSecret: undefined, pendingTwoFactorExpires: undefined } : {}),
+        });
+        cleared++;
+      }
+    }
+    return { cleared };
   },
 });

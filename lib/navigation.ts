@@ -1,3 +1,4 @@
+import type { Permission } from "@/lib/permissions";
 import {
 	LayoutDashboard,
 	BarChart3,
@@ -20,6 +21,8 @@ export interface NavItem {
 	icon: LucideIcon;
 	exact?: boolean;
 	badge?: string;
+	/** Hidden from members who lack this permission. */
+	permission?: Permission;
 }
 
 export interface NavGroup {
@@ -32,23 +35,23 @@ export const clientNavGroups: NavGroup[] = [
 		title: "MAIN",
 		items: [
 			{ id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
-			{ id: "nav-analytics", label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-			{ id: "nav-verification", label: "Services", href: "/dashboard/verification", icon: CheckSquare },
+			{ id: "nav-analytics", label: "Analytics", href: "/dashboard/analytics", icon: BarChart3, permission: "view_history" },
+			{ id: "nav-verification", label: "Services", href: "/dashboard/verification", icon: CheckSquare, permission: "run_verifications" },
 		],
 	},
 	{
 		title: "COMPLIANCE & AUDIT",
 		items: [
-			{ id: "nav-job-list", label: "Verification Jobs", href: "/dashboard/jobs", icon: History },
-			{ id: "nav-audit-logs", label: "Audit Logs", href: "/dashboard/audit", icon: History },
-			{ id: "nav-reports", label: "Compliance Reports", href: "/dashboard/reports", icon: FileSpreadsheet },
+			{ id: "nav-job-list", label: "Verification Jobs", href: "/dashboard/jobs", icon: History, permission: "view_history" },
+			{ id: "nav-audit-logs", label: "Audit Logs", href: "/dashboard/audit", icon: History, permission: "view_history" },
+			{ id: "nav-reports", label: "Compliance Reports", href: "/dashboard/reports", icon: FileSpreadsheet, permission: "view_history" },
 		],
 	},
 	{
 		title: "ORGANIZATION",
 		items: [
-			{ id: "nav-user-management", label: "Team & Roles", href: "/dashboard/users", icon: Users },
-			{ id: "nav-billing", label: "Billing & Balance", href: "/dashboard/billing", icon: CreditCard },
+			{ id: "nav-user-management", label: "Team & Roles", href: "/dashboard/users", icon: Users, permission: "view_users" },
+			{ id: "nav-billing", label: "Billing & Balance", href: "/dashboard/billing", icon: CreditCard, permission: "view_billing" },
 		],
 	},
 	{

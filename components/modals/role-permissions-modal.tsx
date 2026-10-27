@@ -36,7 +36,10 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalProps) {
   const { member } = useApp();
-  const [selectedRole, setSelectedRole] = useState<"Admin" | "Compliance Officer">("Admin");
+  const [selectedRole, setSelectedRole] = useState<"Admin" | "Compliance Officer">("Compliance Officer");
+  // Admins always hold every permission (enforced by the backend), so the
+  // Admin tab is informational only.
+  const isAdminRole = selectedRole === "Admin";
   
   const companyId = member?.companyId as Id<"companies">;
 
@@ -113,6 +116,12 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
           </button>
         </div>
 
+        {isAdminRole && (
+          <p className="text-xs text-gray-500 -mt-2 mb-2">
+            Admins always have every permission, so this role can&apos;t be restricted.
+          </p>
+        )}
+
         {rolePermissions === undefined ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -128,6 +137,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
                   id={`perm-${key}`}
                   checked={localPermissions.includes(key)}
                   onCheckedChange={() => handleToggle(key)}
+                  disabled={isAdminRole}
                   className="mt-1 border-gray-300 data-[state=checked]:bg-brand"
                 />
                 <div className="grid gap-1.5 leading-none">
@@ -150,7 +160,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-brand hover:bg-brand-dark text-white">
+          <Button onClick={handleSave} disabled={isSaving || isAdminRole} className="bg-brand hover:bg-brand-dark text-white">
             {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Permissions"}
           </Button>
         </DialogFooter>

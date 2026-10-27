@@ -9,6 +9,7 @@ import {
   mintSessionToken,
   validateSession,
   requireCompany,
+  requirePermission,
   requireCompanyAdmin,
   requireSelfOrCompanyAdmin,
   requireSelfOrCompanyMember,
@@ -16,6 +17,7 @@ import {
   assertCompanyRole,
   revokeUserSessions,
   isSuperAdminUser,
+  getEffectivePermissions,
 } from "./session";
 import { Id } from "./_generated/dataModel";
 
@@ -310,6 +312,7 @@ export const login = mutation({
       needsPasswordChange: user.needsPasswordChange ?? false,
       has_completed_tour: user.has_completed_tour ?? false,
       isSuperAdmin: isSuperAdminUser(user),
+      permissions: await getEffectivePermissions(ctx, user),
       ...(await issueSession(ctx, user)),
     };
   },
@@ -440,6 +443,8 @@ export const listUsers = query({
     const session = await validateSession(ctx, args.sessionToken);
     if (session.companyId !== args.companyId) {
       await requireSuperAdmin(ctx, args.sessionToken);
+    } else {
+      await requirePermission(ctx, args.sessionToken, args.companyId, "view_users");
     }
     return await ctx.runQuery(internal.users.listUsersInternal, {
       companyId: args.companyId,
@@ -543,6 +548,7 @@ export const setupPasswordWithToken = mutation({
       needsPasswordChange: false,
       has_completed_tour: user.has_completed_tour ?? false,
       isSuperAdmin: isSuperAdminUser(user),
+      permissions: await getEffectivePermissions(ctx, user),
       ...(await issueSession(ctx, user)),
     };
   },
@@ -697,7 +703,7 @@ export const deleteUser = mutation({
 export const getUserStats = query({
   args: { sessionToken: v.string(), companyId: v.id("companies") },
   handler: async (ctx, args) => {
-    await requireCompany(ctx, args.sessionToken, args.companyId);
+    await requirePermission(ctx, args.sessionToken, args.companyId, "view_users");
     const users = await ctx.db
       .query("users")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
