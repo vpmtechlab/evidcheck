@@ -28,10 +28,15 @@ class ProfessionalPDFBuilder {
   checkPageBreak(neededHeight) {
     if (this.y + neededHeight > this.pageHeight - this.marginBottom) {
       this.doc.addPage();
-      this.y = this.marginTop;
+      this.y = 56;
       return true;
     }
     return false;
+  }
+
+  newPage() {
+    this.doc.addPage();
+    this.y = 56;
   }
 
   addHeaderBlock(companyName, docTitle, meta = []) {
@@ -79,11 +84,11 @@ class ProfessionalPDFBuilder {
   }
 
   addSectionHeading(number, title) {
-    this.checkPageBreak(38);
-    this.y += 4;
+    this.checkPageBreak(32);
+    this.y += 3;
 
     this.doc.setFont('helvetica', 'bold');
-    this.doc.setFontSize(10.5);
+    this.doc.setFontSize(10);
     this.doc.setTextColor(...this.primaryColor);
     const headingText = `${number}. ${title.toUpperCase()}`;
     this.doc.text(headingText, this.marginLeft, this.y);
@@ -92,43 +97,42 @@ class ProfessionalPDFBuilder {
     this.doc.setDrawColor(...this.accentColor);
     this.doc.setLineWidth(1.2);
     this.doc.line(this.marginLeft, this.y, this.marginLeft + this.contentWidth, this.y);
-    this.y += 11;
+    this.y += 8;
   }
 
   addSubheading(title) {
-    this.checkPageBreak(24);
-    this.y += 3;
+    this.checkPageBreak(20);
+    this.y += 2;
     this.doc.setFont('helvetica', 'bold');
-    this.doc.setFontSize(9.5);
+    this.doc.setFontSize(9);
     this.doc.setTextColor(...this.primaryColor);
     this.doc.text(title, this.marginLeft, this.y);
-    this.y += 10;
+    this.y += 8;
   }
 
   addParagraph(text) {
     this.doc.setFont('helvetica', 'normal');
-    this.doc.setFontSize(8.8);
+    this.doc.setFontSize(8.6);
     this.doc.setTextColor(...this.textColor);
 
     const lines = this.doc.splitTextToSize(text, this.contentWidth);
-    const neededHeight = lines.length * 12;
-    this.checkPageBreak(neededHeight + 4);
+    const neededHeight = lines.length * 11.5 + 3;
+    this.checkPageBreak(neededHeight);
 
     lines.forEach((line) => {
-      this.checkPageBreak(12);
       this.doc.text(line, this.marginLeft, this.y);
-      this.y += 12;
+      this.y += 11.5;
     });
 
-    this.y += 4;
+    this.y += 3;
   }
 
   addBulletItem(label, description) {
-    this.doc.setFontSize(8.8);
+    this.doc.setFontSize(8.6);
     const indent = 12;
     const bodyWidth = this.contentWidth - indent;
     const descLines = this.doc.splitTextToSize(description, bodyWidth);
-    const neededHeight = 13 + (descLines.length * 11.5) + 3;
+    const neededHeight = 12 + (descLines.length * 11) + 2;
     this.checkPageBreak(neededHeight);
 
     // Bullet & Title Line
@@ -139,18 +143,17 @@ class ProfessionalPDFBuilder {
     this.doc.setTextColor(...this.primaryColor);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(label, this.marginLeft + indent, this.y);
-    this.y += 11.5;
+    this.y += 11;
 
     // Indented Description Lines
     this.doc.setTextColor(...this.textColor);
     this.doc.setFont('helvetica', 'normal');
     descLines.forEach((line) => {
-      this.checkPageBreak(12);
       this.doc.text(line, this.marginLeft + indent, this.y);
-      this.y += 11.5;
+      this.y += 11;
     });
 
-    this.y += 3;
+    this.y += 2;
   }
 
   addCallout(title, body) {
@@ -222,14 +225,14 @@ class ProfessionalPDFBuilder {
   }
 
   addSignatures(sig1, sig2) {
-    const boxHeight = 78;
-    this.checkPageBreak(boxHeight + 16);
+    const boxHeight = 60;
+    this.checkPageBreak(boxHeight + 10);
 
-    this.y += 8;
+    this.y += 6;
     this.doc.setDrawColor(...this.lineColor);
     this.doc.setLineWidth(0.8);
     this.doc.line(this.marginLeft, this.y, this.marginLeft + this.contentWidth, this.y);
-    this.y += 16;
+    this.y += 12;
 
     const colWidth = (this.contentWidth - 30) / 2;
 
@@ -238,27 +241,27 @@ class ProfessionalPDFBuilder {
       let currentY = this.y;
 
       this.doc.setFont('helvetica', 'normal');
-      this.doc.setFontSize(8);
+      this.doc.setFontSize(7.8);
       this.doc.setTextColor(...this.mutedColor);
       this.doc.text(sig.prefix || 'Prepared & Reviewed by:', colX, currentY);
 
-      currentY += 24;
+      currentY += 18;
       this.doc.setDrawColor(...this.mutedColor);
       this.doc.line(colX, currentY, colX + colWidth - 15, currentY);
 
-      currentY += 12;
+      currentY += 10;
       this.doc.setFont('helvetica', 'bold');
-      this.doc.setFontSize(9);
+      this.doc.setFontSize(8.8);
       this.doc.setTextColor(...this.primaryColor);
       this.doc.text(sig.name, colX, currentY);
 
-      currentY += 11;
+      currentY += 10;
       this.doc.setFont('helvetica', 'normal');
-      this.doc.setFontSize(8);
+      this.doc.setFontSize(7.8);
       this.doc.setTextColor(...this.mutedColor);
       this.doc.text(sig.role + ', ' + sig.org, colX, currentY);
 
-      currentY += 11;
+      currentY += 10;
       this.doc.text('Date: ' + sig.date, colX, currentY);
     });
 
@@ -435,12 +438,17 @@ function generatePerfectDPP() {
   b.addBulletItem('Regulatory Redress', 'Data subjects retain the right to lodge formal complaints directly with the Office of the Data Protection Commissioner (ODPC) at Britam Tower, Upper Hill, Nairobi.');
 
   b.addSignatures(
-    { name: 'Data Protection Officer (DPO)', role: 'Data Protection Officer', org: 'EvidCheck Limited', date: '24th November 2026', prefix: 'Drafted & Overseen by:' },
-    { name: 'Director / Legal Counsel', role: 'Director & Legal Representative', org: 'EvidCheck Limited', date: '24th November 2026', prefix: 'Approved on Behalf of Board of Directors:' }
+    { name: 'Moses Karani', role: 'Director / Co-Founder', org: 'EvidCheck Limited', date: '25th November 2026', prefix: 'Drafted & Overseen by:' },
+    { name: 'Viola Masanja', role: 'Director / Co-Founder', org: 'EvidCheck Limited', date: '25th November 2026', prefix: 'Approved on Behalf of Board of Directors:' }
   );
 
   const dest = path.join(process.cwd(), 'EvidCheck_Data_Privacy_Policy.pdf');
   const pages = b.finalizeAndSave(dest);
+
+  const publicDest = path.join(process.cwd(), 'public', 'EvidCheck_Data_Privacy_Policy.pdf');
+  fs.copyFileSync(dest, publicDest);
+  console.log(`Copied DPP to ${publicDest}`);
+
   return pages;
 }
 
@@ -490,6 +498,9 @@ function generatePerfectISP() {
   b.addBulletItem('DevOps & Security Engineers', 'Manage firewall rules, patch management, access provisioning, and automated continuous-integration vulnerability pipelines.');
   b.addBulletItem('All Authorized Users', 'Strictly required to adhere to workstation security, credential hygiene, and clean desk/screen protocols.');
 
+  // Page 2 clean break: Access Control, IPRS Architecture & Threat Mitigation Table
+  b.newPage();
+
   b.addSectionHeading('5', 'Identification, Authentication & Access Control');
   b.addParagraph(
     'Access to EvidCheck verification engines, administrative portals, and audit trails is governed by the Principle of Least Privilege and Role-Based Access Control (RBAC):'
@@ -530,6 +541,9 @@ function generatePerfectISP() {
     }
   );
 
+  // Page 3 clean break: Operational Security, Audit Logging & Compliance Signatures
+  b.newPage();
+
   b.addSectionHeading('8', 'Physical, Environmental & Personnel Security');
   b.addParagraph('In addition to digital controls, EvidCheck maintains rigorous operational and workplace safeguards:');
   b.addBulletItem('Workstation & Device Controls', 'All corporate laptops feature full-disk BitLocker encryption, automatic 5-minute screen lockouts, and centralized mobile device management (MDM).');
@@ -567,12 +581,18 @@ function generatePerfectISP() {
   );
 
   b.addSignatures(
-    { name: 'Chief Technology Officer (CTO)', role: 'Chief Technology Officer', org: 'EvidCheck Limited', date: '24th November 2026', prefix: 'Prepared & Technically Certified by:' },
-    { name: 'Managing Director / CEO', role: 'Managing Director', org: 'EvidCheck Limited', date: '24th November 2026', prefix: 'Approved on Behalf of Board of Directors:' }
+    { name: 'Moses Karani', role: 'Director / Co-Founder', org: 'EvidCheck Limited', date: '25th November 2026', prefix: 'Prepared & Technically Certified by:' },
+    { name: 'Viola Masanja', role: 'Director / Co-Founder', org: 'EvidCheck Limited', date: '25th November 2026', prefix: 'Approved on Behalf of Board of Directors:' }
   );
 
   const dest = path.join(process.cwd(), 'EvidCheck_Information_Security_Policy.pdf');
   const pages = b.finalizeAndSave(dest);
+
+  // Also copy to public directory for direct web downloads
+  const publicDest = path.join(process.cwd(), 'public', 'EvidCheck_Information_Security_Policy.pdf');
+  fs.copyFileSync(dest, publicDest);
+  console.log(`Copied ISP to ${publicDest}`);
+
   return pages;
 }
 
