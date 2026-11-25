@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireSuperAdmin } from "./session";
 
 export const getPrices = query({
   args: {},
@@ -19,8 +20,9 @@ export const getPriceByServiceId = query({
 });
 
 export const updatePrice = mutation({
-  args: { pricingId: v.id("pricing"), newPrice: v.number() },
+  args: { sessionToken: v.string(), pricingId: v.id("pricing"), newPrice: v.number() },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     await ctx.db.patch(args.pricingId, {
       price: args.newPrice,
       updatedAt: Date.now()
@@ -30,12 +32,14 @@ export const updatePrice = mutation({
 
 export const addPrice = mutation({
   args: {
+    sessionToken: v.string(),
     serviceCategory: v.string(),
     serviceId: v.string(),
     serviceName: v.string(),
     price: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireSuperAdmin(ctx, args.sessionToken);
     // Check if the serviceId already exists
     const existing = await ctx.db
       .query("pricing")

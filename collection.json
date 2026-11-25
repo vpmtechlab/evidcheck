@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-		"name": "TrustCert SDK",
-		"description": "Official Collection for TrustCert Verification APIs",
+		"name": "EvidCheck SDK",
+		"description": "Official Collection for EvidCheck Verification APIs",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -24,6 +24,22 @@
 					"path": ["verifications"]
 				},
 				"description": "Triggers a new verification job and returns the full result immediately."
+			},
+			"response": []
+		},
+		{
+			"name": "Retrieve Verification Result",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "X-API-KEY", "value": "{{apiKey}}", "type": "text" }
+				],
+				"url": {
+					"raw": "{{baseUrl}}/verifications/{{jobId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["verifications", "{{jobId}}"]
+				},
+				"description": "Retrieves the verification result and status payload for a specific jobId."
 			},
 			"response": []
 		}

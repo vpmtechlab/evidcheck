@@ -1,191 +1,125 @@
+"use client";
+
 import React, { useState, useContext } from "react";
-import {
-  Eye,
-  EyeOff,
-  Copy,
-  RefreshCw,
-  AlertCircle,
-  AlertTriangle,
-  Loader2,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AppContext } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
+import { getSessionToken } from "@/lib/session-token";
+import { ApiKeyCard, type ApiKeyMode } from "./api-key-card";
+import { RollKeyDialog } from "./roll-key-dialog";
 
 export function ApiSettings() {
   const { member } = useContext(AppContext);
-  const apiKeys = useQuery(api.apiKeys.list, 
-    member?.companyId ? { companyId: member.companyId as Id<"companies"> } : "skip"
+  const apiKeys = useQuery(
+    api.apiKeys.list,
+    member?.companyId ? { sessionToken: getSessionToken() ?? "", companyId: member.companyId as Id<"companies"> } : "skip"
   );
   const generateApiKey = useMutation(api.apiKeys.generate);
 
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showLiveKey, setShowLiveKey] = useState(false);
+  const [showTestKey, setShowTestKey] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<ApiKeyMode | null>(null);
   const [loading, setLoading] = useState(false);
-  const [newKey, setNewKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const activeKey = apiKeys?.[0]; // Support multiple if needed, but UI shows one for now
-  const displayKey = newKey || activeKey?.keyHash || "api_live_••••••••••••••••••••••••";
+  const [newLiveKey, setNewLiveKey] = useState<string | null>(null);
+  const [newTestKey, setNewTestKey] = useState<string | null>(null);
 
-  const handleCopyApiKey = () => {
-    if (!displayKey || displayKey.includes("•••")) {
-      toast.error("No key available to copy.");
-      return;
-    }
-    navigator.clipboard.writeText(displayKey);
-    toast.success("API Key copied to clipboard!");
+  const liveKeyObj = apiKeys?.find((k) => k.mode === "live");
+  const testKeyObj = apiKeys?.find((k) => k.mode === "test");
+
+  // Full key material is only available immediately after generation; after
+  // that we can only show a non-sensitive prefix.
+  const displayLiveKey = newLiveKey || liveKeyObj?.keyPrefix || null;
+  const displayTestKey = newTestKey || testKeyObj?.keyPrefix || null;
+
+  const handleCopyKey = (keyString: string, type: string) => {
+    navigator.clipboard.writeText(keyString);
+    setCopiedKey(type);
+    toast.success(`${type} API Key copied to clipboard!`);
+    setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  const handleRegenerateKey = () => {
-    setShowConfirmModal(true);
-  };
-
-  const confirmRegenerate = async () => {
+  const confirmGenerateKey = async (mode: ApiKeyMode) => {
     if (!member?.companyId || !member?.id) return;
     setLoading(true);
     try {
       const result = await generateApiKey({
+        sessionToken: getSessionToken() ?? "",
         companyId: member.companyId as Id<"companies">,
-        userId: member.id as Id<"users">,
-        name: "Standard Access Key",
+        name: mode === "live" ? "Production Live Key" : "Sandbox Test Key",
+        mode,
       });
-      setNewKey(result.rawKey);
-      setShowApiKey(true);
-      toast.success("New API Key generated successfully!");
-      setShowConfirmModal(false);
+
+      if (mode === "live") {
+        setNewLiveKey(result.rawKey);
+        setShowLiveKey(true);
+      } else {
+        setNewTestKey(result.rawKey);
+        setShowTestKey(true);
+      }
+
+      toast.success(`New ${mode.toUpperCase()} API Key generated!`);
+      setShowConfirmModal(null);
     } catch {
-      toast.error("Failed to generate API Key.");
+      toast.error(`Failed to generate ${mode} API Key.`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-gray-900">API Configuration</h2>
-        <p className="text-sm text-gray-500">
-          Manage your API keys and access tokens for external integrations.
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+          API Environments & Access Credentials
+        </h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          EvidCheck enforces strict separation between Production and Sandbox test environments.
         </p>
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="p-2 bg-purple-50 rounded-lg shrink-0">
-            <div className="w-6 h-6 rounded-full border-2 border-purple-500 flex items-center justify-center text-xs font-bold text-purple-600">
-              K
-            </div>
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-900">Secret Key</h3>
-            <p className="text-sm text-gray-500">
-              Use this key to authenticate your server-side API requests. Keep
-              it secret and never share it in client-side code.
-            </p>
-          </div>
-        </div>
+      <ApiKeyCard
+        mode="live"
+        displayKey={displayLiveKey}
+        visible={showLiveKey}
+        copied={copiedKey === "Production Live"}
+        onToggleVisibility={() => setShowLiveKey(!showLiveKey)}
+        onCopy={() => displayLiveKey && handleCopyKey(displayLiveKey, "Production Live")}
+        onRoll={() => setShowConfirmModal("live")}
+      />
 
-        {/* Key Display */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 font-mono text-sm text-gray-700 relative group transition-colors hover:border-gray-300">
-            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-              {showApiKey ? displayKey : "api_live_••••••••••••••••••••••••"}
-            </span>
+      <ApiKeyCard
+        mode="test"
+        displayKey={displayTestKey}
+        visible={showTestKey}
+        copied={copiedKey === "Sandbox Test"}
+        onToggleVisibility={() => setShowTestKey(!showTestKey)}
+        onCopy={() => displayTestKey && handleCopyKey(displayTestKey, "Sandbox Test")}
+        onRoll={() => setShowConfirmModal("test")}
+      />
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-all"
-                title={showApiKey ? "Hide Key" : "Show Key"}
-              >
-                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-              <button
-                onClick={handleCopyApiKey}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-all"
-                title="Copy Key"
-              >
-                <Copy size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {newKey && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700 font-medium">
-            IMPORTANT: Copy your new key now. You won&apos;t be able to see it again!
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <p className="text-xs text-gray-400">
-            {activeKey ? `Created on ${new Date(activeKey.createdAt).toLocaleDateString()}` : "No active keys"}
-          </p>
-          <Button
-            variant="ghost"
-            onClick={handleRegenerateKey}
-            disabled={loading}
-            className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors w-full sm:w-auto"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Roll Key
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <div className="flex gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-800">
-        <AlertCircle className="shrink-0" size={20} />
-        <div className="text-sm">
-          <p className="font-semibold mb-1">Security Best Practices</p>
-          <ul className="list-disc list-inside space-y-1 opacity-90">
-            <li>Rotate your keys periodically (e.g. every 90 days)</li>
-            <li>Review usage logs regularly for suspicious activity</li>
-            <li>Immediately roll your key if you suspect it has been compromised</li>
+      <div className="flex gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-xs">
+        <AlertCircle className="shrink-0 text-amber-700" size={18} />
+        <div>
+          <p className="font-bold mb-1">Environment Isolation Rules</p>
+          <ul className="list-disc list-inside space-y-0.5 text-amber-800">
+            <li><code className="font-mono">evid_test_sk_*</code> keys only work against the Sandbox endpoint and will not charge real balance.</li>
+            <li><code className="font-mono">evid_live_sk_*</code> keys will be rejected by the Sandbox URL with HTTP 403 Forbidden.</li>
+            <li>Always store API keys securely in server environment variables (<code className="font-mono">.env</code>).</li>
           </ul>
         </div>
       </div>
 
-      <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <AlertDialogContent className="sm:max-w-sm">
-          <AlertDialogHeader className="flex flex-col items-center">
-            <div className="flex justify-center mb-4 w-full">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="text-red-600" size={24} />
-              </div>
-            </div>
-            <AlertDialogTitle className="text-xl">Regenerate API Key?</AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              Are you sure you want to regenerate your API key? Your current key
-              will be invalidated immediately and any applications using it will
-              stop working.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row gap-3 justify-between! mt-4">
-            <AlertDialogCancel className="mt-0 flex-1">Cancel</AlertDialogCancel>
-            <Button
-              onClick={confirmRegenerate}
-              disabled={loading}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-            >
-              Regenerate
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <RollKeyDialog
+        mode={showConfirmModal}
+        loading={loading}
+        onClose={() => setShowConfirmModal(null)}
+        onConfirm={confirmGenerateKey}
+      />
     </div>
   );
 }

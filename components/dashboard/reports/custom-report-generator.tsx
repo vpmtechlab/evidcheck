@@ -13,21 +13,41 @@ import { useApp } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { format as formatDate } from "date-fns";
 import { downloadCSV, downloadPDF } from "@/lib/export-utils";
+import {
+  filterVerificationsForReport,
+  toComplianceCsvRows,
+  toCompliancePdfRows,
+} from "@/lib/report-export";
+import { cn } from "@/lib/utils";
+import { getSessionToken } from "@/lib/session-token";
 
-type ReportData = {
-  Date: string;
-  Type: string;
-  Status: string;
-  Entity: string;
-  Reference: string;
-  [key: string]: string | number | boolean | null | undefined;
+const TYPE_LABELS: Record<string, string> = {
+  compliance: "Compliance Summary",
+  audit: "Audit Log",
+  financial: "Financial Report",
+  activity: "User Activity",
 };
+
+function DateField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs font-semibold text-gray-700">{label}</Label>
+      <Input
+        id={id}
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 rounded-md border-gray-300 text-xs"
+      />
+    </div>
+  );
+}
 
 export function CustomReportGenerator() {
   const { member } = useApp();
-  const company = useQuery(api.companies.getDefaultCompany);
-  const allVerifications = useQuery(api.verifications.getVerificationsByCompany, 
-    company?._id ? { companyId: company._id } : "skip"
+  const company = useQuery(api.companies.getDefaultCompany, { sessionToken: getSessionToken() ?? "" });
+  const allVerifications = useQuery(api.verifications.getVerificationsByCompany,
+    company?._id ? { sessionToken: getSessionToken() ?? "", companyId: company._id } : "skip"
   );
   const createReport = useMutation(api.reports.createReport);
 
@@ -43,48 +63,33 @@ export function CustomReportGenerator() {
       toast.error("Please select a date range.");
       return;
     }
-
     if (!company?._id || !member?.id) {
       toast.error("Organization context not found.");
       return;
     }
-
+    if (!allVerifications) {
+      toast.error("Verification data is not yet loaded.");
+      return;
+    }
     setGenerating(true);
     try {
-      const typeLabel = {
-        compliance: "Compliance Summary",
-        audit: "Audit Log",
-        financial: "Financial Report",
-        activity: "User Activity",
-      }[reportType] || "Custom Report";
-
+      const typeLabel = TYPE_LABELS[reportType] || "Custom Report";
       const reportName = `${typeLabel} - ${formatDate(new Date(startDate), "MMM dd")} to ${formatDate(new Date(endDate), "MMM dd")}`;
 
-      // --- REAL DATA FILTERING ---
-      if (!allVerifications) {
-        toast.error("Verification data is not yet loaded.");
-        return;
-      }
-
-      const startMs = new Date(startDate).getTime();
-      const endMs = new Date(endDate).getTime() + 86400000; // Include the end day
-
-      const filteredLogs = allVerifications.filter(v => {
-        const createdAt = v.createdAt;
-        if (createdAt < startMs || createdAt > endMs) return false;
-        if (status !== "all" && v.resultStatus !== status) return false;
-        // Optionally filter by report type logic here if needed
-        return true;
+      const filteredLogs = filterVerificationsForReport(allVerifications, {
+        startDate,
+        endDate,
+        reportType,
+        status,
       });
-
       if (filteredLogs.length === 0) {
         toast.error("No records found for the selected criteria.");
         return;
       }
 
       await createReport({
+        sessionToken: getSessionToken() ?? "",
         companyId: company._id,
-        userId: member.id as Id<"users">,
         name: reportName,
         type: typeLabel,
         format: format.toUpperCase(),
@@ -92,37 +97,14 @@ export function CustomReportGenerator() {
         config: { startDate, endDate, reportType, status },
       });
 
-      const isCSV = format.toLowerCase() === "csv";
-      
-      if (isCSV) {
-        const exportData = filteredLogs.map(v => ({
-          Date: formatDate(v.createdAt, "yyyy-MM-dd HH:mm"),
-          Service: v.serviceName || v.serviceType,
-          Status: v.resultStatus.toUpperCase(),
-          Subject: v.entityData?.firstName ? `${v.entityData.firstName} ${v.entityData.lastName || ""}` : (v.entityData?.companyName || "N/A"),
-          "Reference ID": v._id.slice(-8).toUpperCase(),
-          "Fees (USD)": v.feesCharged || 0,
-          Source: v.source
-        }));
-
-        downloadCSV(exportData, reportName.replace(/\s+/g, "_"));
+      const fileName = reportName.replace(/\s+/g, "_");
+      if (format.toLowerCase() === "csv") {
+        downloadCSV(toComplianceCsvRows(filteredLogs), fileName);
       } else {
-        const headers = ["Date", "Service", "Status", "Subject", "Ref ID", "Fee"];
-        const rows = filteredLogs.map(v => [
-          formatDate(v.createdAt, "MM/dd/yyyy"),
-          v.serviceName || v.serviceType,
-          v.resultStatus.toUpperCase(),
-          v.entityData?.firstName ? `${v.entityData.firstName} ${v.entityData.lastName || ""}` : (v.entityData?.companyName || "N/A"),
-          v._id.slice(-6).toUpperCase(),
-          v.feesCharged ? `$${v.feesCharged.toFixed(2)}` : "$0.00"
-        ]);
-
-        downloadPDF(headers, rows, reportName.replace(/\s+/g, "_"), typeLabel);
+        const { headers, rows } = toCompliancePdfRows(filteredLogs);
+        downloadPDF(headers, rows, fileName, typeLabel);
       }
-
       toast.success(`${typeLabel} generated and downloaded successfully!`);
-      
-      // Reset dates after successful generation
       setStartDate("");
       setEndDate("");
     } catch (error) {
@@ -134,42 +116,25 @@ export function CustomReportGenerator() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-secondary/5 rounded-lg text-secondary">
-          <FileText size={20} />
+    <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-2xs space-y-5">
+      <div className="flex items-center gap-2.5">
+        <div className="p-2 bg-navy text-white rounded-md">
+          <FileText size={18} />
         </div>
         <div>
-          <h3 className="font-bold text-gray-900">Generate Custom Report</h3>
-          <p className="text-sm text-gray-500">Filter data and export in your preferred format.</p>
+          <h3 className="text-sm font-bold text-gray-900 tracking-tight">Generate Custom Report</h3>
+          <p className="text-[11px] text-gray-500">Filter data and export in your preferred format.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="space-y-2">
-          <Label htmlFor="start-date">Start Date</Label>
-          <Input
-            id="start-date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="end-date">End Date</Label>
-          <Input
-            id="end-date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <DateField id="start-date" label="Start Date" value={startDate} onChange={setStartDate} />
+        <DateField id="end-date" label="End Date" value={endDate} onChange={setEndDate} />
 
-        <div className="space-y-2 w-full">
-          <Label htmlFor="report-type">Report Type</Label>
+        <div className="space-y-1.5 w-full">
+          <Label htmlFor="report-type" className="text-xs font-semibold text-gray-700">Report Type</Label>
           <Select value={reportType} onValueChange={(value: string | null) => setReportType(value ?? "compliance")}>
-            <SelectTrigger id="report-type" className="w-full">
+            <SelectTrigger id="report-type" className="w-full h-9 rounded-md border-gray-300 text-xs">
               <SelectValue placeholder="Select report type" />
             </SelectTrigger>
             <SelectContent>
@@ -181,15 +146,15 @@ export function CustomReportGenerator() {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="status" className="text-xs font-semibold text-gray-700">Status</Label>
           <Select value={status} onValueChange={(value: string | null) => setStatus(value ?? "all")}>
-            <SelectTrigger id="status" className="w-full">
+            <SelectTrigger id="status" className="w-full h-9 rounded-md border-gray-300 text-xs">
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="verified">Verified (Successful)</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="pending">Pending Review</SelectItem>
               <SelectItem value="failed">Failed / Rejected</SelectItem>
             </SelectContent>
@@ -197,32 +162,34 @@ export function CustomReportGenerator() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-4 border-t border-gray-50">
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <span className="text-sm font-medium text-gray-700">Export Format:</span>
-          <div className="flex bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setFormat("pdf")}
-              className={`flex items-center gap-2 cursor-pointer px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                format === "pdf" ? "bg-white text-red-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <File size={16} /> PDF
-            </button>
-            <button
-              onClick={() => setFormat("csv")}
-              className={`flex items-center gap-2 cursor-pointer px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                format === "csv" ? "bg-white text-green-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <FileSpreadsheet size={16} /> CSV
-            </button>
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-3 pt-4 border-t border-gray-100">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-gray-700">Export Format:</span>
+          <div className="flex bg-gray-100 p-1 rounded-md" role="group" aria-label="Export format">
+            {(
+              [
+                { id: "pdf", label: "PDF", icon: File },
+                { id: "csv", label: "CSV", icon: FileSpreadsheet },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setFormat(opt.id)}
+                aria-pressed={format === opt.id}
+                className={cn(
+                  "flex items-center gap-1.5 cursor-pointer px-3.5 py-1.5 rounded text-xs font-semibold transition-all",
+                  format === opt.id ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                <opt.icon size={14} /> {opt.label}
+              </button>
+            ))}
           </div>
         </div>
         <Button
           onClick={handleGenerateCustomReport}
           disabled={generating}
-          className="w-full md:w-auto min-w-[150px] bg-primary hover:bg-[#146c11] text-white"
+          className="w-full md:w-auto min-w-[150px] bg-brand hover:bg-brand-dark text-white h-9 text-xs font-bold rounded-md disabled:opacity-50"
         >
           {generating ? "Generating..." : "Generate Report"}
         </Button>

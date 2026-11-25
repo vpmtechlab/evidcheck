@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
+import { getSessionToken } from "@/lib/session-token";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { useApp } from "@/components/providers/app-provider";
@@ -35,13 +36,16 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalProps) {
   const { member } = useApp();
-  const [selectedRole, setSelectedRole] = useState<"Admin" | "Compliance Officer">("Admin");
+  const [selectedRole, setSelectedRole] = useState<"Admin" | "Compliance Officer">("Compliance Officer");
+  // Admins always hold every permission (enforced by the backend), so the
+  // Admin tab is informational only.
+  const isAdminRole = selectedRole === "Admin";
   
   const companyId = member?.companyId as Id<"companies">;
 
   const rolePermissions = useQuery(
     api.permissions.getRolePermissions,
-    companyId && isOpen ? { companyId, role: selectedRole } : "skip"
+    companyId && isOpen ? { sessionToken: getSessionToken() ?? "", companyId, role: selectedRole } : "skip"
   );
 
   const updateRolePermissions = useMutation(api.permissions.updateRolePermissions);
@@ -66,6 +70,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
     setIsSaving(true);
     try {
       await updateRolePermissions({
+        sessionToken: getSessionToken() ?? "",
         companyId,
         role: selectedRole,
         permissions: localPermissions,
@@ -84,7 +89,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-[#023e4a]" />
+            <ShieldAlert className="w-5 h-5 text-brand" />
             Role Permissions
           </DialogTitle>
           <DialogDescription>
@@ -111,6 +116,12 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
           </button>
         </div>
 
+        {isAdminRole && (
+          <p className="text-xs text-gray-500 -mt-2 mb-2">
+            Admins always have every permission, so this role can&apos;t be restricted.
+          </p>
+        )}
+
         {rolePermissions === undefined ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
@@ -126,9 +137,10 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
                   id={`perm-${key}`}
                   checked={localPermissions.includes(key)}
                   onCheckedChange={() => handleToggle(key)}
-                  className="mt-1 border-gray-300 data-[state=checked]:bg-[#023e4a]"
+                  disabled={isAdminRole}
+                  className="mt-1 border-gray-300 data-[state=checked]:bg-brand"
                 />
-                <div className="grid gap-1.5 leading-none cursor-pointer" onClick={() => handleToggle(key)}>
+                <div className="grid gap-1.5 leading-none">
                   <label
                     htmlFor={`perm-${key}`}
                     className="text-sm font-semibold text-gray-900 cursor-pointer"
@@ -148,7 +160,7 @@ export function RolePermissionsModal({ isOpen, onClose }: RolePermissionsModalPr
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-[#023e4a] hover:bg-[#034e5d] text-white">
+          <Button onClick={handleSave} disabled={isSaving || isAdminRole} className="bg-brand hover:bg-brand-dark text-white">
             {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Permissions"}
           </Button>
         </DialogFooter>

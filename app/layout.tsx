@@ -11,8 +11,8 @@ const urbanist = Urbanist({
 });
 
 export const metadata: Metadata = {
-  title: "Trustcert",
-  description: "Compliance Management",
+  title: "EvidCheck",
+  description: "Real-time KYB, KYB Verification",
 };
 
 export default function RootLayout({
@@ -24,6 +24,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${urbanist.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <ConvexClientProvider>

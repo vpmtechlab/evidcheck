@@ -7,10 +7,12 @@ import { api } from "@/convex/_generated/api";
 import { useApp } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getSessionToken } from "@/lib/session-token";
 
 export function UserStatsCards() {
   const { member } = useApp();
   const statsData = useQuery(api.users.getUserStats, member?.companyId ? { 
+    sessionToken: getSessionToken() ?? "",
     companyId: member.companyId as Id<"companies"> 
   } : "skip");
 

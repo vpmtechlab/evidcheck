@@ -7,12 +7,13 @@ import { api } from "@/convex/_generated/api";
 import { AppContext } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { getSessionToken } from "@/lib/session-token";
 import { Loader2 } from "lucide-react";
 
 export function NotificationSettings() {
   const { member } = useContext(AppContext);
   const preferredSettings = useQuery(api.users.getUserPreferences, 
-    member?.id ? { userId: member.id as Id<"users"> } : "skip"
+    member?.id ? { sessionToken: getSessionToken() ?? "", userId: member.id as Id<"users"> } : "skip"
   );
   const updatePreferences = useMutation(api.users.updateNotificationPreferences);
 
@@ -42,6 +43,7 @@ export function NotificationSettings() {
     setLoading(true);
     try {
       await updatePreferences({
+        sessionToken: getSessionToken() ?? "",
         userId: member.id as Id<"users">,
         preferences: settings,
       });

@@ -48,7 +48,7 @@ export function downloadPDF(
   // 1. Add Header
   doc.setFontSize(20);
   doc.setTextColor(2, 62, 74); // Brand Color: #023e4a
-  doc.text("TRUSTCERT", 14, 22);
+  doc.text("EVIDCHECK", 14, 22);
   
   doc.setFontSize(10);
   doc.setTextColor(100);
@@ -86,7 +86,7 @@ export function downloadPDF(
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `Page ${i} of ${pageCount} - Private & Confidential - TrustCert.io`,
+      `Page ${i} of ${pageCount} - Private & Confidential - EvidCheck.com`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: "center" }

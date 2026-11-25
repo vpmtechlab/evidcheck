@@ -43,30 +43,26 @@ export function MetricsGrid({ analytics }: MetricsGridProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {stats.map((stat, i) => (
-        <div 
-          key={i} 
-          className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 flex items-center justify-between group"
+        <div
+          key={i}
+          className="bg-white p-4 rounded-lg border border-gray-200 shadow-2xs hover:shadow-xs transition-shadow flex items-center justify-between group"
         >
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-4xl font-black text-gray-900 tracking-tighter tabular-nums">{stat.value}</h3>
-            </div>
-            <p className={`text-[10px] font-bold ${stat.color} flex items-center gap-1.5 uppercase tracking-wider`}>
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{stat.label}</p>
+            <h3 className="text-3xl font-bold text-gray-900 tracking-tight tabular-nums">{stat.value}</h3>
+            <p className={`text-[10px] font-bold ${stat.color} uppercase tracking-wider`}>
                {stat.trend}
             </p>
           </div>
-          
+
           {stat.isScore ? (
-            <div className={`w-20 h-20 rounded-full border-8 border-green-500 border-t-gray-100 flex items-center justify-center rotate-45 group-hover:rotate-0 transition-transform duration-700`}>
-              <div className="-rotate-45 group-hover:rotate-0 transition-transform duration-700">
-                 {stat.icon}
-              </div>
+            <div className="w-16 h-16 rounded-full border-[6px] border-green-500 border-t-gray-100 flex items-center justify-center shrink-0">
+              {stat.icon}
             </div>
           ) : (
-            <div className={`w-14 h-14 ${stat.bgColor} ${stat.color} rounded-2xl flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform`}>
+            <div className={`w-12 h-12 ${stat.bgColor} ${stat.color} rounded-md flex items-center justify-center shrink-0`}>
               {stat.icon}
             </div>
           )}

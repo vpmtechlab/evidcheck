@@ -21,10 +21,10 @@ export default function AuthLayout({
 		<div className="min-h-screen w-full flex items-center justify-center p-4 lg:p-8 font-sans overflow-hidden relative">
 			{/* Main Background with Greenish Bluish Gradient and Blur */}
 			<div className="absolute inset-0 bg-linear-to-br from-[#0a192f] via-[#0f2e2e] to-[#0a142f] z-0" />
-			<div className="absolute inset-0 bg-teal-900/20 backdrop-blur-3xl z-0 pointer-events-none" />
+			<div className="absolute inset-0 bg-green-900/20 backdrop-blur-3xl z-0 pointer-events-none" />
 
 			{/* Ambient Blobs for extra 'blurrish' feel */}
-			<div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-teal-500/10 rounded-full blur-[150px] pointer-events-none" />
+			<div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-green-500/10 rounded-full blur-[150px] pointer-events-none" />
 			<div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
 
 			<div className="relative z-10 w-full max-w-[1400px] h-fit md:h-[90vh] md:min-h-[550px] md:max-h-[900px] bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col lg:flex-row ring-1 ring-gray-200/50 dark:bg-slate-900 dark:ring-white/10">
@@ -82,7 +82,7 @@ export default function AuthLayout({
 										height={128}
 										className="rounded-full"
 									/>
-									<div className="absolute -bottom-2 -right-2 w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center shadow-lg">
+									<div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shadow-lg">
 										<Zap className="w-4 h-4 text-white" />
 									</div>
 								</div>
@@ -96,12 +96,10 @@ export default function AuthLayout({
 								className="max-w-lg"
 							>
 								<h1 className="text-4xl font-bold text-white leading-tight mb-4">
-									Welcome to TrustCert
+									Welcome to EvidCheck
 								</h1>
-								<p className="text-teal-100/80 text-lg leading-relaxed">
-									Automate corporate KYC, verify entities globally, and ensure
-									compliance with a platform built for modern financial
-									institutions.
+								<p className="text-white/70 text-sm font-medium leading-relaxed max-w-sm">
+									Verify companies, national IDs, tax compliance, and credit scores with automated speed and regulatory compliance.
 								</p>
 							</motion.div>
 
@@ -117,7 +115,7 @@ export default function AuthLayout({
 										key={index}
 										className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 transition-all hover:bg-white/20"
 									>
-										<feature.icon className="w-4 h-4 text-teal-300" />
+										<feature.icon className="w-4 h-4 text-green-300" />
 										<span className="text-white/90 text-sm font-medium">
 											{feature.label}
 										</span>
@@ -139,16 +137,11 @@ export default function AuthLayout({
 										Trusted by Industry Leaders
 									</h3>
 									<p className="mt-1 text-sm text-white/60">
-										Join 2,000+ companies using TrustCert.
+										Join 2,000+ companies using EvidCheck.
 									</p>
 								</div>
 								<div className="flex -space-x-2">
-									{[1, 2, 3].map((i) => (
-										<div
-											key={i}
-											className="h-8 w-8 rounded-full border-2 border-teal-900 bg-gray-300 flex items-center justify-center text-xs font-bold"
-										></div>
-									))}
+									<div className="h-8 w-8 rounded-full border-2 border-white/30 bg-green-600 text-white font-bold text-[10px] flex items-center justify-center">JK</div><div className="h-8 w-8 rounded-full border-2 border-white/30 bg-navy text-white font-bold text-[10px] flex items-center justify-center">AO</div><div className="h-8 w-8 rounded-full border-2 border-white/30 bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">PM</div>
 								</div>
 							</div>
 						</motion.div>

@@ -10,14 +10,10 @@ import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useApp, Member } from "@/components/providers/app-provider";
-import { Id } from "@/convex/_generated/dataModel";
-import { ShieldCheck, ArrowLeft } from "lucide-react";
-import { 
-	InputOTP, 
-	InputOTPGroup, 
-	InputOTPSlot 
-} from "@/components/ui/input-otp";
 import { getErrorMessage } from "@/lib/utils";
+import { setSessionCookie, createSessionExpiry, STORAGE_KEYS } from "@/lib/session-cookie";
+import { setSessionToken } from "@/lib/session-token";
+import { TwoFactorView } from "./two-factor-view";
 
 interface LoginResponse {
 	userId: string;
@@ -28,6 +24,10 @@ interface LoginResponse {
 	last_name: string;
 	needsPasswordChange: boolean;
 	has_completed_tour: boolean;
+	isSuperAdmin: boolean;
+	permissions: string[];
+	sessionToken: string;
+	sessionExpiresAt: number;
 }
 
 export function LoginForm() {
@@ -35,9 +35,10 @@ export function LoginForm() {
 	const [password, setPassword] = useState("");
 	const [otpCode, setOtpCode] = useState("");
 	const [step, setStep] = useState<"login" | "2fa">("login");
-	const [tempUserId, setTempUserId] = useState<Id<"users"> | null>(null);
+	// Single-use proof that the password step succeeded (2FA sign-in only).
+	const [challengeToken, setChallengeToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
-	
+
 	const router = useRouter();
 	const login = useMutation(api.users.login);
 	const verify2FA = useMutation(api.auth.verify2FACode);
@@ -51,21 +52,25 @@ export function LoginForm() {
 
 		setIsLoading(true);
 		try {
-			const result = await login({ 
-				email, 
-				password, 
+			const result = await login({
+				email,
+				password,
 				userAgent: typeof window !== "undefined" ? window.navigator.userAgent : "Server",
 				location: "Web Access" // Placeholder for now
 			});
 
+			if ("error" in result) {
+				toast.error(result.error);
+				return;
+			}
+
 			if ("twoFactorRequired" in result && result.twoFactorRequired) {
-				setTempUserId(result.userId as Id<"users">);
+				setChallengeToken(result.challengeToken);
 				setStep("2fa");
 				toast.info("Two-Factor Authentication Required");
 				return;
 			}
 
-			// If we reach here, 2FA was not required
 			completeLogin(result as LoginResponse);
 		} catch (error) {
 			toast.error(getErrorMessage(error));
@@ -75,7 +80,7 @@ export function LoginForm() {
 	};
 
 	const handleVerify2FA = async () => {
-		if (!otpCode || otpCode.length < 6 || !tempUserId) {
+		if (!otpCode || otpCode.length < 6 || !challengeToken) {
 			toast.warning("Please enter a valid 6-digit code.");
 			return;
 		}
@@ -83,9 +88,20 @@ export function LoginForm() {
 		setIsLoading(true);
 		try {
 			const result = await verify2FA({
-				userId: tempUserId,
+				challengeToken,
 				code: otpCode,
 			});
+			if ("error" in result && result.error) {
+				const message = result.error;
+				toast.error(message);
+				// The challenge is burned after too many bad codes: start over.
+				if (message.startsWith("Too many")) {
+					setChallengeToken(null);
+					setOtpCode("");
+					setStep("login");
+				}
+				return;
+			}
 			completeLogin(result as LoginResponse);
 		} catch (error) {
 			toast.error(getErrorMessage(error));
@@ -95,9 +111,20 @@ export function LoginForm() {
 	};
 
 	const completeLogin = (result: LoginResponse) => {
-		// Simple local auth state persistence for MVP
+		const expiresAt = result.sessionExpiresAt ?? createSessionExpiry();
+		setSessionCookie({
+			userId: result.userId,
+			companyId: result.companyId,
+			role: result.role,
+			email: result.email,
+			isSuperAdmin: result.isSuperAdmin === true,
+			expiresAt,
+		});
+
 		localStorage.setItem("userId", result.userId);
 		localStorage.setItem("companyId", result.companyId);
+		localStorage.setItem(STORAGE_KEYS.expiresAt, String(expiresAt));
+		setSessionToken(result.sessionToken);
 		const memberInfo: Member = {
 			id: result.userId,
 			first_name: result.first_name,
@@ -107,24 +134,23 @@ export function LoginForm() {
 			companyId: result.companyId,
 			needsPasswordChange: result.needsPasswordChange,
 			has_completed_tour: result.has_completed_tour,
+			isSuperAdmin: result.isSuperAdmin === true,
+			permissions: result.permissions,
 		};
 		setMember(memberInfo);
 
 		toast.success("Login Successful!");
 
-		// Clear form state
 		setEmail("");
 		setPassword("");
 		setOtpCode("");
 
-		// Redirect logic
 		if (result.needsPasswordChange) {
 			router.push("/setup-password");
 			return;
 		}
 
-		// Role-based/Domain-based routing
-		if (result.email.includes("@vpmtechlab.com")) {
+		if (result.isSuperAdmin) {
 			router.push("/admin");
 		} else {
 			router.push("/dashboard");
@@ -133,56 +159,13 @@ export function LoginForm() {
 
 	if (step === "2fa") {
 		return (
-			<div className="w-full space-y-6">
-				<div className="flex flex-col items-center text-center space-y-2">
-					<div className="p-3 bg-[#023e4a]/10 rounded-full text-[#023e4a]">
-						<ShieldCheck size={32} />
-					</div>
-					<h2 className="text-xl font-bold text-gray-900">Two-Factor Authentication</h2>
-					<p className="text-sm text-gray-500 max-w-[280px]">
-						Enter the 6-digit verification code from your authenticator app to continue.
-					</p>
-				</div>
-
-				<div className="space-y-4">
-					<div className="space-y-2 flex flex-col items-center">
-						<Label htmlFor="otp" className="mb-2">Verification Code</Label>
-						<InputOTP
-							id="otp"
-							maxLength={6}
-							value={otpCode}
-							onChange={(value) => setOtpCode(value)}
-							containerClassName="justify-center"
-						>
-							<InputOTPGroup>
-								<InputOTPSlot index={0} />
-								<InputOTPSlot index={1} />
-								<InputOTPSlot index={2} />
-								<InputOTPSlot index={3} />
-								<InputOTPSlot index={4} />
-								<InputOTPSlot index={5} />
-							</InputOTPGroup>
-						</InputOTP>
-					</div>
-
-					<Button
-						onClick={handleVerify2FA}
-						variant="secondary"
-						size="lg"
-						disabled={isLoading || otpCode.length < 6}
-						className="w-full py-3 transition-colors text-white font-semibold shadow-lg text-sm"
-					>
-						{isLoading ? "Verifying..." : "Verify & Sign In"}
-					</Button>
-
-					<button
-						onClick={() => setStep("login")}
-						className="flex items-center justify-center gap-2 text-sm text-[#023e4a] hover:underline w-full mt-2"
-					>
-						<ArrowLeft size={14} /> Back to Sign In
-					</button>
-				</div>
-			</div>
+			<TwoFactorView
+				otpCode={otpCode}
+				isLoading={isLoading}
+				onOtpChange={setOtpCode}
+				onVerify={handleVerify2FA}
+				onBack={() => setStep("login")}
+			/>
 		);
 	}
 
@@ -198,7 +181,7 @@ export function LoginForm() {
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
-						className="bg-gray-50 border-gray-200 focus:border-[#023e4a] focus:ring-[#023e4a]/20 rounded-lg py-2"
+						className="bg-gray-50 border-gray-200 focus:border-brand focus:ring-brand/20 rounded-lg py-2"
 					/>
 				</div>
 
@@ -210,7 +193,7 @@ export function LoginForm() {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						required
-						className="bg-gray-50 border-gray-200 focus:border-[#023e4a] focus:ring-[#023e4a]/20 rounded-lg py-2"
+						className="bg-gray-50 border-gray-200 focus:border-brand focus:ring-brand/20 rounded-lg py-2"
 					/>
 				</div>
 			</div>

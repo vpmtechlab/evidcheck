@@ -11,3 +11,10 @@ When working on Convex code, **always read `convex/_generated/ai/guidelines.md` 
 
 Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
 <!-- convex-ai-end -->
+
+# Architecture & Page Componentization Rule
+Every page route (e.g. `app/dashboard/help/documentation/page.tsx`, `app/dashboard/verification/page.tsx`) MUST be fully componentized:
+- Sub-components specific to a page must be placed in a local `components/` directory adjacent to the `page.tsx` file (e.g. `app/dashboard/help/documentation/components/`).
+- The main `page.tsx` file should be kept lean, acting primarily as an orchestrator that imports and renders these modular components.
+- Shared/global components remain in `/components/ui` or `/components/layout` or `/components/shared`.
+

@@ -139,7 +139,7 @@ export function EditUserModal({ isOpen, onClose, user, onSave }: EditUserModalPr
           <Button
             onClick={handleSave}
             disabled={!formData.name || !formData.email}
-            className="flex-1 bg-primary hover:bg-[#146c11] text-white"
+            className="flex-1 bg-primary hover:bg-brand-dark text-white"
           >
             <Save size={18} className="mr-2" />
             Save Changes

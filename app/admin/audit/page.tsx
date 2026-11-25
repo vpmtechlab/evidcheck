@@ -1,105 +1,159 @@
 "use client";
 
-import React from "react";
+import { getSessionToken } from "@/lib/session-token";
+
+import React, { useMemo, useState } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AuditFeed } from "@/components/shared/audit-feed";
-import { Activity, ShieldCheck, Filter, Download } from "lucide-react";
+import { AuditToolbar, type AuditCategoryFilter } from "@/components/shared/audit-toolbar";
+import { Activity, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+	AUDIT_CATEGORIES,
+	auditLogMatchesSearch,
+	categorizeAuditAction,
+	downloadAuditCsv,
+} from "@/lib/audit-categories";
 
 export default function AdminAuditPage() {
-  const { results: logs, status, loadMore } = usePaginatedQuery(
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<AuditCategoryFilter>("all");
+
+  const { results: rawLogs, status, loadMore } = usePaginatedQuery(
     api.audit.getGlobalAuditLogs,
-    {},
-    { initialNumItems: 10 }
+    { sessionToken: getSessionToken() ?? "" },
+    { initialNumItems: 20 }
   );
 
+  const logs = useMemo(() => {
+    if (!rawLogs) return undefined;
+    return rawLogs.filter(
+      (log) =>
+        (category === "all" || categorizeAuditAction(log.action) === category) &&
+        auditLogMatchesSearch(log, search)
+    );
+  }, [rawLogs, category, search]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const log of rawLogs ?? []) {
+      const id = categorizeAuditAction(log.action);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return AUDIT_CATEGORIES.map((cat) => ({
+      ...cat,
+      count: counts.get(cat.id) ?? 0,
+    })).filter((cat) => cat.count > 0);
+  }, [rawLogs]);
+
+  const handleExportCsv = () => {
+    if (!logs || logs.length === 0) {
+      toast.error("No audit events available to export.");
+      return;
+    }
+    downloadAuditCsv(logs, `evidcheck_platform_audit_${Date.now()}.csv`);
+    toast.success(`Exported ${logs.length} audit events to CSV.`);
+  };
+
   return (
-    <div className="p-4 space-y-12 min-h-screen bg-gray-50/20">
+    <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-10 border-b border-gray-100">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-             <div className="p-3 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20">
-                <ShieldCheck size={24} />
-             </div>
-             <div>
-                <h1 className="text-5xl font-black text-gray-900 tracking-tighter leading-none">
-                   Platform Governance
-                </h1>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.3em] mt-2">Global System Audit Trail</p>
-             </div>
-          </div>
-          <p className="text-gray-500 font-medium max-w-xl">
-             Monitoring every configuration change, administrative override, and high-level platform event across all tenant organizations.
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-200">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Platform Governance & Audit Trail
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Immutable log of all configuration changes, administrative overrides, and high-level platform events.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 self-end lg:self-auto">
-           <Button variant="outline" className="rounded-2xl px-6 font-bold text-xs gap-2 shadow-sm uppercase tracking-widest h-12">
-              <Filter size={16} /> Filter Results
-           </Button>
-           <Button className="rounded-2xl px-6 font-bold text-xs gap-2 shadow-xl uppercase tracking-widest h-12 bg-gray-900 text-white hover:bg-black transition-all">
-              <Download size={16} /> Export Logs
+        <div className="flex items-center gap-2">
+           <Button
+             onClick={handleExportCsv}
+             disabled={!logs || logs.length === 0}
+             size="sm"
+             className="rounded-md px-3 text-xs font-semibold gap-1.5 h-8 bg-navy text-white hover:bg-navy-soft shadow-xs disabled:opacity-50"
+           >
+              <Download size={13} /> Export Logs
            </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
          {/* Stats Sidebar */}
-         <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-6">
+         <div className="lg:col-span-1 space-y-4">
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-2xs space-y-4">
                <div>
-                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">Audit Strength</h3>
-                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                     <div className="h-full w-[95%] bg-primary rounded-full transition-all duration-1000" />
-                  </div>
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-1.5">Live Stream</h3>
+                  <p className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                     <Activity size={14} className="text-green-600 animate-pulse" />
+                     Operational
+                  </p>
                </div>
-               
-               <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Platform Hits</p>
-                     <p className="text-2xl font-black text-gray-900 tracking-tighter">{logs?.length || "--"}</p>
-                  </div>
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-emerald-900">
-                     <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Log Status</p>
-                     <p className="text-xl font-black tracking-tighter flex items-center gap-2">
-                        <Activity size={16} className="animate-pulse" />
-                        Healthy
-                     </p>
+
+               <div className="space-y-2 pt-3 border-t border-gray-100">
+                  <div className="p-3 bg-gray-50 rounded-md border border-gray-100">
+                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Events in view</p>
+                     <p className="text-xl font-bold text-gray-900 font-mono tracking-tight">{logs?.length ?? "--"}</p>
                   </div>
                </div>
 
-               <p className="text-[10px] text-gray-400 font-bold leading-relaxed">
-                  Platform audits are tamper-proof and cryptographically verified. Deletions are strictly prohibited by protocol.
+               {categoryCounts.length > 0 && (
+                 <div className="space-y-1.5 pt-3 border-t border-gray-100">
+                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">By category</p>
+                   {categoryCounts.map((cat) => (
+                     <div key={cat.id} className="flex items-center justify-between text-xs">
+                       <span className="text-gray-600 font-medium">{cat.label}</span>
+                       <span className="font-bold text-gray-900 font-mono">{cat.count}</span>
+                     </div>
+                   ))}
+                 </div>
+               )}
+
+               <p className="text-[11px] text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
+                  Audit entries are append-only and retained for compliance review.
                </p>
             </div>
          </div>
 
          {/* Main Audit Feed */}
-         <div className="lg:col-span-3 space-y-8">
-            <AuditFeed 
-               logs={logs} 
-               title="Platform Interactions" 
-               showCompany={true} 
+         <div className="lg:col-span-3 space-y-4">
+            <AuditToolbar
+              search={search}
+              onSearchChange={setSearch}
+              category={category}
+              onCategoryChange={setCategory}
             />
-            
+
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-2xs">
+              <AuditFeed
+                 logs={logs}
+                 title="Platform Interactions"
+                 subtitle="Newest first · click any event for technical details"
+                 showCompany={true}
+              />
+            </div>
+
             {/* Pagination Controls */}
             {status !== "Exhausted" && (
-               <div className="flex justify-center pt-4">
+               <div className="flex justify-center pt-2">
                   <Button
-                     onClick={() => loadMore(10)}
+                     onClick={() => loadMore(20)}
                      disabled={status === "LoadingMore"}
                      variant="outline"
-                     className="rounded-[2rem] px-12 py-6 font-black uppercase tracking-[0.2em] text-[10px] border-2 border-gray-100 hover:border-primary hover:text-primary transition-all shadow-sm disabled:opacity-50"
+                     size="sm"
+                     className="rounded-md px-6 text-xs font-semibold border-gray-300 hover:bg-gray-50 text-gray-700 h-8 disabled:opacity-50"
                   >
                      {status === "LoadingMore" ? "Synchronizing..." : "Load More Activity"}
                   </Button>
                </div>
             )}
 
-            {status === "Exhausted" && logs.length > 0 && (
-               <p className="text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] pt-4">
+            {status === "Exhausted" && logs && logs.length > 0 && (
+               <p className="text-center text-xs font-mono text-gray-400 pt-2">
                   End of Audit Trail
                </p>
             )}

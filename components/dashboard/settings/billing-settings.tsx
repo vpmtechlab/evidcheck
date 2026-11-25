@@ -6,13 +6,16 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AppContext } from "@/components/providers/app-provider";
 import { Id } from "@/convex/_generated/dataModel";
+import { getSessionToken } from "@/lib/session-token";
+import { hasPermission } from "@/lib/permissions";
 
 export function BillingSettings() {
   const { member } = useContext(AppContext);
   const companyId = member?.companyId as Id<"companies">;
   
-  const balanceDoc = useQuery(api.balances.get, companyId ? { companyId } : "skip");
-  const transactions = useQuery(api.transactions.list, companyId ? { companyId } : "skip");
+  const balanceDoc = useQuery(api.balances.get, companyId ? { sessionToken: getSessionToken() ?? "", companyId } : "skip");
+  const canViewBilling = hasPermission(member, "view_billing");
+  const transactions = useQuery(api.transactions.list, companyId && canViewBilling ? { sessionToken: getSessionToken() ?? "", companyId } : "skip");
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -71,7 +74,11 @@ export function BillingSettings() {
           </Link>
         </div>
         
-        {!transactions ? (
+        {!canViewBilling ? (
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-500">
+            <p>You don&apos;t have permission to view transactions.</p>
+          </div>
+        ) : !transactions ? (
           <div className="flex justify-center p-12">
             <Loader2 className="animate-spin text-gray-300" />
           </div>

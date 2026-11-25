@@ -1,5 +1,7 @@
 "use client";
 
+import { getSessionToken } from "@/lib/session-token";
+
 import React, { useContext } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -25,7 +27,7 @@ export function NotificationDropdown() {
   const { member } = useContext(AppContext);
   
   const notifications = useQuery(api.audit.getActiveNotificationsByUser, 
-    member?.id ? { userId: member.id as Id<"users"> } : "skip"
+    member?.id ? { sessionToken: getSessionToken() ?? "", userId: member.id as Id<"users"> } : "skip"
   );
   
   const clearNotifications = useMutation(api.audit.clearNotifications);
@@ -34,7 +36,7 @@ export function NotificationDropdown() {
 
   const handleClear = async () => {
     if (member?.id) {
-      await clearNotifications({ userId: member.id as Id<"users"> });
+      await clearNotifications({ sessionToken: getSessionToken() ?? "", userId: member.id as Id<"users"> });
     }
   };
 
@@ -57,7 +59,7 @@ export function NotificationDropdown() {
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className=" w-80 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="font-bold text-gray-900">Notifications</h3>
           {unreadCount > 0 && (
@@ -73,7 +75,7 @@ export function NotificationDropdown() {
           )}
         </div>
         
-        <div className="h-[350px] overflow-y-auto custom-scrollbar">
+        <div className="h-[350px] overflow-y-auto overflow-x-hidden custom-scrollbar">
 
           {notifications === undefined ? (
             <div className="p-8 text-center text-gray-500 text-sm">Loading...</div>

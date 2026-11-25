@@ -1,144 +1,106 @@
-# TrustCert Developer SDK Guide
+# EvidCheck Developer SDK Guide
 
-Welcome to the TrustCert Developer Program. This guide provides the technical specifications required to integrate TrustCert's identity and compliance verification engine directly into your own applications via our REST API.
+Welcome to the EvidCheck Developer Program. This guide provides the technical specifications required to integrate EvidCheck's identity and compliance verification engine directly into your own applications via our REST API.
 
 ---
 
-## 1. Authentication
+## 1. Quick Start
 
-All API requests must be authenticated using an **API Key** passed in the `X-API-KEY` header.
-
-> [!IMPORTANT]
-> Keep your API keys secret. If an API key is compromised, revoke it immediately from the **Settings > API Keys** section of your dashboard.
+### Authentication
+All requests to the EvidCheck REST API must be authenticated using your Secret API Key in the `x-api-key` header.
 
 ```bash
-# Example Header
-X-API-KEY: tc_live_xxxxxxxxxxxxxxxxxxxxxxxx
+curl -X POST https://api.evidcheck.com/v1/verifications \
+  -H "x-api-key: evid_live_sk_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serviceType": "business_registration",
+    "entityData": {
+      "companyNumber": "PVT-2022/94821",
+      "country": "KE"
+    }
+  }'
 ```
 
 ---
 
-## 2. Core Endpoints
+## 2. API Environments
 
-### A. Initiate Verification
-Start a new identity check for an individual or business.
+EvidCheck enforces strict key environment separation:
 
-**Endpoint:** `POST /v1/verifications`
-
-**Payload (KYC - National ID):**
-```json
-{
-  "serviceType": "national_id",
-  "data": {
-    "idNumber": "12345678",
-    "firstName": "John",
-    "lastName": "Doe",
-    "country": "KE"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "jobId": "job_987654321",
-  "status": "pending",
-  "message": "Verification initiated"
-}
-```
+| Environment | Base URL | Supported Key Prefix |
+| :--- | :--- | :--- |
+| **Production** | `https://api.evidcheck.com/v1/verifications` | `evid_live_sk_*` |
+| **Sandbox** | `https://sandbox.evidcheck.com/v1/sandbox/verifications` | `evid_test_sk_*` |
 
 ---
 
-### B. Retrieve Verification Result
-Fetch the detailed payload of a completed verification job.
+## 3. Webhook Integration
 
-**Endpoint:** `GET /v1/verifications/{jobId}`
+EvidCheck can send real-time POST notifications to your server when a verification changes status.
 
-**Sample Response:**
-```json
-{
-  "jobId": "job_987654321",
-  "status": "approved",
-  "data": {
-    "fullName": "JOHN DOE",
-    "idStatus": "Valid",
-    "expiryDate": "2029-12-31",
-    "verificationMessage": "National ID verified successfully"
-  }
-}
-```
+### Event Payload Example
 
----
-
-## 3. Webhooks
-
-TrustCert can send real-time POST notifications to your server when a verification changes status.
-
-### Webhook Event Object
 ```json
 {
   "event": "verification.completed",
-  "timestamp": 1712431200,
+  "jobId": "job_9482014829",
+  "serviceType": "business_registration",
+  "resultStatus": "approved",
   "data": {
-    "jobId": "job_987654321",
-    "status": "approved",
-    "serviceType": "national_id"
-  }
+    "companyName": "TERVIO ANALYTICS LIMITED",
+    "registrationNumber": "PVT-2022/94821",
+    "status": "ACTIVE"
+  },
+  "timestamp": "2026-08-19T13:45:00Z"
 }
 ```
 
 ---
 
-## 4. Sample Code
+## 4. Official SDK Libraries
 
-### Node.js (Axios)
+### Node.js (JavaScript / TypeScript)
+
 ```javascript
 const axios = require('axios');
 
 const client = axios.create({
-  baseURL: 'https://api.trustcert.io/v1',
-  headers: { 'X-API-KEY': 'your_api_key_here' }
+  baseURL: 'https://api.evidcheck.com/v1',
+  headers: {
+    'x-api-key': process.env.EVIDCHECK_API_KEY,
+    'Content-Type': 'application/json'
+  }
 });
 
-async function verifyId(idNumber) {
-  try {
-    const response = await client.post('/verifications', {
-      serviceType: 'national_id',
-      data: { idNumber }
-    });
-    console.log('Job Created:', response.data.jobId);
-  } catch (error) {
-    console.error('Verification failed:', error.response.data);
-  }
+async function verifyCompany(companyNumber) {
+  const response = await client.post('/verifications', {
+    serviceType: 'business_registration',
+    entityData: { companyNumber, country: 'KE' }
+  });
+  return response.data;
 }
 ```
 
-### Python (Requests)
+### Python
+
 ```python
 import requests
+import os
 
-API_KEY = "your_api_key_here"
-BASE_URL = "https://api.trustcert.io/v1"
+BASE_URL = "https://api.evidcheck.com/v1"
+API_KEY = os.getenv("EVIDCHECK_API_KEY")
 
-def start_verification(id_number):
-    headers = {"X-API-KEY": API_KEY}
+headers = {
+    "x-api-key": API_KEY,
+    "Content-Type": "application/json"
+}
+
+def verify_id(id_number):
     payload = {
         "serviceType": "national_id",
-        "data": {"id_number": id_number}
+        "entityData": {"idNumber": id_number, "country": "KE"}
     }
-    
     response = requests.post(f"{BASE_URL}/verifications", json=payload, headers=headers)
     return response.json()
 ```
-
----
-
-## 5. Error Codes
-
-| Code | Description |
-| --- | --- |
-| `401` | Unauthorized (Invalid API Key) |
-| `402` | Payment Required (Insufficient Balance) |
-| `404` | Not Found (Invalid Job ID) |
-| `422` | Unprocessable Entity (Validation Error) |
-| `429` | Too Many Requests (Rate Limit Exceeded) |

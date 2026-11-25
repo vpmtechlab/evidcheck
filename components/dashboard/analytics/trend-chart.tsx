@@ -34,7 +34,7 @@ export function TrendChart({ data }: TrendChartProps) {
 
         <div className="flex gap-2">
           <span className="flex items-center gap-1 text-xs text-gray-500">
-            <span className="w-2 h-2 rounded-full bg-[#023e4a]"></span>
+            <span className="w-2 h-2 rounded-full bg-brand"></span>
             Volume
           </span>
         </div>

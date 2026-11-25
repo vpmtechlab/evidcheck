@@ -1,12 +1,15 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { requirePermission } from "./session";
 
 export const getBillingAnalytics = query({
   args: {
+    sessionToken: v.string(),
     companyId: v.id("companies"),
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requirePermission(ctx, args.sessionToken, args.companyId, "view_billing");
     const days = args.days || 30;
     const now = Date.now();
     const startTime = now - days * 24 * 60 * 60 * 1000;
@@ -34,7 +37,7 @@ export const getBillingAnalytics = query({
 
       const dayKey = dayDate.toISOString().split("T")[0];
       const stats = dailyStats.get(dayKey);
-      if (stats) {
+      if (stats && tx.status !== "pending") {
         if (tx.type === "top_up") {
           stats.toppedUp += tx.amount;
         } else {

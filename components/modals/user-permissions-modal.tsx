@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserCog, ShieldAlert } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
+import { getSessionToken } from "@/lib/session-token";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
@@ -40,13 +41,13 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
   // Get base role permissions
   const rolePermissions = useQuery(
     api.permissions.getRolePermissions,
-    companyId && user?.role && isOpen ? { companyId, role: user.role } : "skip"
+    companyId && user?.role && isOpen ? { sessionToken: getSessionToken() ?? "", companyId, role: user.role } : "skip"
   );
 
   // Get user specific custom permissions
   const queryCustomPermissions = useQuery(
     api.permissions.getUserCustomPermissions,
-    user?.id && isOpen ? { userId: user.id as Id<"users"> } : "skip"
+    user?.id && isOpen ? { sessionToken: getSessionToken() ?? "", userId: user.id as Id<"users"> } : "skip"
   );
 
   const updateUserCustomPermissions = useMutation(api.permissions.updateUserCustomPermissions);
@@ -90,6 +91,7 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
     setIsSaving(true);
     try {
       await updateUserCustomPermissions({
+        sessionToken: getSessionToken() ?? "",
         userId: user.id as Id<"users">,
         customPermissions: useCustom ? localPermissions : undefined,
       });
@@ -106,10 +108,10 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
+      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] !gap-0 !overflow-hidden !p-0 sm:max-w-[550px]">
+        <DialogHeader className="shrink-0 px-4 pt-5 sm:px-6">
           <DialogTitle className="flex items-center gap-2">
-            <UserCog className="w-5 h-5 text-[#023e4a]" />
+            <UserCog className="w-5 h-5 text-brand" />
             User Permissions
           </DialogTitle>
           <DialogDescription>
@@ -117,30 +119,31 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
           </DialogDescription>
         </DialogHeader>
 
-        {rolePermissions === undefined || queryCustomPermissions === undefined ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-100 rounded-xl">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          {rolePermissions === undefined || queryCustomPermissions === undefined ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
               <Checkbox
                 id="use-custom"
                 checked={useCustom}
                 onCheckedChange={handleToggleCustom}
-                className="data-[state=checked]:bg-[#023e4a] border-[#023e4a]"
+                className="data-[state=checked]:bg-brand border-brand"
               />
-              <div className="grid gap-1 leading-none" onClick={() => handleToggleCustom(!useCustom)}>
-                <label htmlFor="use-custom" className="text-sm font-bold text-[#023e4a] cursor-pointer cursor-allowed">
+              <div className="grid gap-1 leading-none">
+                <label htmlFor="use-custom" className="text-sm font-bold text-brand cursor-pointer cursor-allowed">
                   Enable Custom Permissions Override
                 </label>
-                <p className="text-xs text-teal-800">
+                <p className="text-xs text-green-800">
                   If unchecked, the user will inherit the default permissions for their <span className="font-semibold">{user.role}</span> role.
                 </p>
               </div>
             </div>
 
-            <div className={`grid gap-3 max-h-[300px] overflow-y-auto pr-2 ${!useCustom ? 'opacity-50 pointer-events-none grayscale-[0.5]' : ''}`}>
+            <div className={`grid max-h-[300px] gap-3 overflow-y-auto overscroll-contain pr-2 ${!useCustom ? 'opacity-50 pointer-events-none grayscale-[0.5]' : ''}`}>
               <div className="text-xs font-semibold uppercase text-gray-500 mb-1 ml-1 tracking-wider">
                 {useCustom ? "Select custom permissions:" : `Inheriting from ${user.role} role:`}
               </div>
@@ -154,9 +157,9 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
                     checked={localPermissions.includes(key)}
                     onCheckedChange={() => handleToggle(key)}
                     disabled={!useCustom}
-                    className="mt-1 border-gray-300 data-[state=checked]:bg-[#023e4a]"
+                    className="mt-1 border-gray-300 data-[state=checked]:bg-brand"
                   />
-                  <div className="grid gap-1.5 leading-none cursor-pointer" onClick={() => handleToggle(key)}>
+                  <div className="grid gap-1.5 leading-none">
                     <label
                       htmlFor={`user-perm-${key}`}
                       className={`text-sm font-semibold cursor-pointer ${!useCustom ? "cursor-default" : ""}`}
@@ -177,14 +180,15 @@ export function UserPermissionsModal({ isOpen, onClose, user }: UserPermissionsM
                 This role currently has no permissions assigned by default.
               </div>
             )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="mx-0 mb-0 mt-0 shrink-0 rounded-b-xl bg-muted/50 px-4 py-4 sm:px-6">
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-[#023e4a] hover:bg-[#034e5d] text-white">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-brand hover:bg-brand-dark text-white">
             {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Permissions"}
           </Button>
         </DialogFooter>

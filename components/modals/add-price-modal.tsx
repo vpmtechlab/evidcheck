@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/utils";
+import { getSessionToken } from "@/lib/session-token";
 
 interface AddPriceModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function AddPriceModal({ isOpen, onClose }: AddPriceModalProps) {
     setIsLoading(true);
     try {
       await addPrice({
+        sessionToken: getSessionToken() ?? "",
         serviceName: name,
         serviceId,
         serviceCategory: category,
@@ -93,10 +95,11 @@ export default function AddPriceModal({ isOpen, onClose }: AddPriceModalProps) {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="kyc">KYC (Individual)</option>
-              <option value="kyb">KYB (Business)</option>
-              <option value="aml">AML / Compliance</option>
-              <option value="other">Other</option>
+              <option value="kyc">KYC (Individual Document)</option>
+              <option value="kyb">KYB (Business Registration)</option>
+              <option value="kra">KRA (Tax Compliance)</option>
+              <option value="crb">CRB (Credit Bureau Risk)</option>
+              <option value="other">Other Services</option>
             </select>
           </div>
           <div className="grid gap-2">

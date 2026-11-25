@@ -1,12 +1,15 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { requirePermission } from "./session";
 
 export const getDashboardAnalytics = query({
 	args: {
+		sessionToken: v.string(),
 		companyId: v.id("companies"),
 		days: v.optional(v.number()),
 	},
 	handler: async (ctx, args) => {
+		await requirePermission(ctx, args.sessionToken, args.companyId, "view_history");
 		const jobs = await ctx.db
 			.query("jobs")
 			.withIndex("by_company", (q) => q.eq("companyId", args.companyId))
