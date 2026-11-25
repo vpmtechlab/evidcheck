@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -70,8 +71,15 @@ export function SecurityStep({
 				</div>
 				<div className="flex items-center space-x-2 pt-2">
 					<Checkbox id="terms" checked={agreeTerms} onCheckedChange={(v) => onAgreeChange(v === true)} />
-					<Label htmlFor="terms" className="text-gray-600 text-[10px] font-normal leading-none">
-						I agree to the <a href="#" className="text-brand hover:underline">Terms & Privacy Policy</a>
+					<Label htmlFor="terms" className="text-gray-600 text-[10px] font-normal leading-relaxed">
+						I agree to the{" "}
+						<Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-brand hover:underline font-medium">
+							Terms of Service
+						</Link>{" "}
+						and{" "}
+						<Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-brand hover:underline font-medium">
+							Privacy Policy
+						</Link>
 					</Label>
 				</div>
 			</div>

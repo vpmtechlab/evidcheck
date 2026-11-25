@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
 import { ShieldCheck } from "lucide-react";
@@ -52,6 +53,19 @@ export default function LoginPage() {
       <div>
         {view === "login" ? <LoginForm /> : <RegisterForm onSuccess={() => setView("login")} />}
       </div>
+
+      {/* Legal Footer */}
+      <p className="text-center text-[11px] text-gray-500 mt-6 leading-relaxed">
+        By continuing, you agree to EvidCheck&apos;s{" "}
+        <Link href="/terms" className="text-brand hover:underline font-medium">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="text-brand hover:underline font-medium">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

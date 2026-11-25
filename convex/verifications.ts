@@ -4,6 +4,7 @@ import { Id, Doc } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { recordAuditLog, recordNotification } from "./audit";
 import { requireCompany, requirePermission, validateSession } from "./session";
+import { executeMetropolCRBCheck } from "./metropol";
 
 // ── Registry Cache (30-day TTL) ─────────────────────────────────────────────
 // Shared platform cache for registry lookups. Repeat searches are served from
@@ -1136,9 +1137,26 @@ export const runVerificationInternal = internalAction({
 				finalFeesCharged = 0;
 				aiPayload = { error: message, source: "EvidCheck Web API" };
 			}
+		} else if (
+			args.serviceType.includes("crb") ||
+			args.serviceType.includes("credit")
+		) {
+			// 6. Metropol CRB Engine (Smart Hybrid: Deterministic Profile + AI Risk Analyst)
+			try {
+				const metropolResult = await executeMetropolCRBCheck(args.entityData as Record<string, any>);
+				resultStatus = metropolResult.verificationStatus;
+				message = metropolResult.verificationMessage;
+				aiPayload = metropolResult;
+				finalFeesCharged = verificationCost;
+			} catch (err) {
+				console.error("Metropol CRB Execution Failed:", err);
+				resultStatus = "failed";
+				message = err instanceof Error ? err.message : "CRB Service Error";
+				finalFeesCharged = 0;
+				aiPayload = { error: message, source: "Metropol Engine" };
+			}
 		} else {
-			// For non-Gava services (AI driven), decide if we charge
-			// In this system, we currently charge for approved AI verifications
+			// For standard AI driven services, charge for approved verifications
 			if (resultStatus === "approved") {
 				finalFeesCharged = verificationCost;
 			}
