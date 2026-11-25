@@ -133,8 +133,8 @@ export function FillDetails({
 		}
 	};
 
-	const isCachedPrice = cacheStatus?.cached === true && cacheStatus.fresh && canSubmit();
-	const activeFee = isCachedPrice ? cachedFeeAmount : priceAmount;
+	const isCachedPrice = false;
+	const activeFee = priceAmount;
 
 	return (
 		<motion.div
@@ -153,9 +153,9 @@ export function FillDetails({
 					</p>				</div>
 
 				<VerificationFeeBox
-					isCachedPrice={isCachedPrice}
+					isCachedPrice={false}
 					activeFee={activeFee}
-					cachedFetchedAt={cacheStatus?.cached === true ? cacheStatus.fetchedAt : undefined}
+					cachedFetchedAt={undefined}
 				/>
 			</div>
 

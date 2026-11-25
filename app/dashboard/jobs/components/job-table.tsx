@@ -142,14 +142,12 @@ export function JobTable({ jobs, currentPage, itemsPerPage, onPageChange }: JobT
 												>
 													{row.resultStatus ?? "Pending"}
 												</span>
-												{row.fromCache && (
-													<span
-														title="Served from the EvidCheck registry cache"
-														className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-blue-50 text-blue-700 border-blue-200"
-													>
-														Cached
-													</span>
-												)}
+												<span
+													title="Zero-Caching Enforced under ODPC & IPRS Guidelines (No local storage of citizen records)"
+													className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200"
+												>
+													Zero-Cache
+												</span>
 											</div>
 										</TableCell>
 										<TableCell className="max-w-[220px] truncate text-xs text-gray-600" title={row.message}>

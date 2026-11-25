@@ -65,7 +65,7 @@ export function JobHeader({
 						disabled={isRefreshing}
 						variant="outline"
 						size="sm"
-						title="Bypass the registry cache and pull a fresh result"
+						title="Re-query authoritative registry directly in real-time"
 						className="h-8 text-xs font-bold text-gray-700 border-gray-300 hover:bg-gray-50 rounded-md gap-1.5 shadow-2xs"
 					>
 						{isRefreshing ? (

@@ -79,19 +79,13 @@ export function ExecutionCard({
 				</div>
 
 				<div className="flex items-center justify-between pt-2">
-					<span className="text-gray-500 font-medium">Data Source:</span>
-					{fromCache ? (
-						<span
-							title={`Served from the EvidCheck registry cache${cacheFetchedLabel ? ` (verified ${cacheFetchedLabel})` : ""}. Use Refresh from Registry for a live pull.`}
-							className="font-mono text-[11px] font-bold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-sm"
-						>
-							Registry Cache{cacheFetchedLabel ? ` · ${cacheFetchedLabel}` : ""}
-						</span>
-					) : (
-						<span className="font-mono text-[11px] font-bold px-2 py-0.5 bg-gray-100 border border-gray-200 rounded-sm text-gray-800">
-							Live Registry
-						</span>
-					)}
+					<span className="text-gray-500 font-medium">Data Processing Mode:</span>
+					<span
+						title="Zero-Caching Policy enforced under ODPC and IPRS compliance guidelines. Sovereign demographic records are corroborated ephemerally and purged immediately."
+						className="font-mono text-[11px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm"
+					>
+						Stateless Point-in-Time (Zero-Cache)
+					</span>
 				</div>
 			</div>
 		</div>

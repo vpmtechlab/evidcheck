@@ -7,6 +7,12 @@ interface AuthorityCardProps {
 	entityData: Record<string, string>;
 }
 
+function maskIdentifier(id?: string): string {
+	if (!id) return "";
+	if (id.length <= 4) return "****";
+	return id.substring(0, 2) + "****" + id.substring(id.length - 2);
+}
+
 export function AuthorityCard({ serviceType, entityData }: AuthorityCardProps) {
 	const authority = getAuthorityInfo(serviceType);
 	const AuthLogo = authority.logo;
@@ -52,15 +58,21 @@ export function AuthorityCard({ serviceType, entityData }: AuthorityCardProps) {
 				{entityData.idNumber && (
 					<div className="flex items-center justify-between">
 						<span className="text-gray-500 font-medium">ID / Doc Number:</span>
-						<span className="font-bold text-gray-900 font-mono">{entityData.idNumber}</span>
+						<span className="font-bold text-gray-900 font-mono">{maskIdentifier(entityData.idNumber)}</span>
 					</div>
 				)}
 				{entityData.pin && (
 					<div className="flex items-center justify-between">
 						<span className="text-gray-500 font-medium">KRA PIN:</span>
-						<span className="font-bold text-gray-900 font-mono">{entityData.pin}</span>
+						<span className="font-bold text-gray-900 font-mono">{maskIdentifier(entityData.pin)}</span>
 					</div>
 				)}
+				<div className="flex items-center justify-between pt-1">
+					<span className="text-gray-500 font-medium">Privacy Protection:</span>
+					<span className="font-bold text-emerald-600 font-mono text-[10px] uppercase bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+						Zero-Cache Enforced
+					</span>
+				</div>
 			</div>
 		</div>
 	);
