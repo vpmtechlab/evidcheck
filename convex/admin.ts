@@ -1,8 +1,55 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import bcrypt from "bcryptjs";
+import { internal } from "./_generated/api";
 import { recordAuditLog } from "./audit";
-import { requireSuperAdmin, revokeUserSessions, toPublicUser } from "./session";
+import { requireSuperAdmin, revokeUserSessions, sha256hex, toPublicUser } from "./session";
+
+const PERSONAL_EMAIL_DOMAINS = [
+  "gmail.com",
+  "yahoo.com",
+  "hotmail.com",
+  "outlook.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "aol.com",
+  "mail.com",
+  "protonmail.com",
+  "zoho.com",
+  "yandex.com",
+];
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function normalizeDomain(domain: string): string {
+  return domain
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z]+:\/\//, "")
+    .replace(/^www\./, "")
+    .split(/[/?#]/)[0];
+}
+
+function isPersonalEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase() ?? "";
+  return PERSONAL_EMAIL_DOMAINS.includes(domain);
+}
+
+function emailMatchesDomain(email: string, domain: string): boolean {
+  const emailDomain = email.split("@")[1] ?? "";
+  return emailDomain === domain || emailDomain.endsWith("." + domain);
+}
+
+function randomCredential(numBytes = 10): string {
+  return [...crypto.getRandomValues(new Uint8Array(numBytes))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 /**
  * Super Admin Queries
@@ -367,6 +414,128 @@ export const getAdminDashboardAnalytics = query({
       trendData,
       leaderboard,
       serviceDistribution
+    };
+  },
+});
+
+/**
+ * Superadmin-only: directly onboard a KYB-verified client organization,
+ * create its initial corporate admin user (with temporary credentials and a
+ * 72-hour password setup token), initialize its balance, and send the welcome email.
+ */
+export const onboardCompany = mutation({
+  args: {
+    sessionToken: v.string(),
+    companyName: v.string(),
+    regNumber: v.string(),
+    country: v.string(),
+    location: v.string(),
+    domain: v.string(),
+    adminFirstName: v.string(),
+    adminSurname: v.string(),
+    adminEmail: v.string(),
+    initialBalance: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const session = await requireSuperAdmin(ctx, args.sessionToken);
+
+    const companyName = args.companyName.trim();
+    const regNumber = args.regNumber.trim();
+    const country = args.country.trim();
+    const location = args.location.trim();
+    const domain = normalizeDomain(args.domain);
+    const adminFirstName = args.adminFirstName.trim();
+    const adminSurname = args.adminSurname.trim();
+    const email = normalizeEmail(args.adminEmail);
+
+    if (!companyName || !regNumber || !country || !location || !domain || !adminFirstName || !adminSurname || !email) {
+      throw new ConvexError("All organization and administrator fields are required.");
+    }
+
+    if (isPersonalEmail(email)) {
+      throw new ConvexError("Please use a corporate work email address. Personal emails are not permitted.");
+    }
+
+    if (!emailMatchesDomain(email, domain)) {
+      throw new ConvexError(`Admin email must belong to the company domain (${domain}).`);
+    }
+
+    const existingCompany = await ctx.db
+      .query("companies")
+      .withIndex("by_domain", (q) => q.eq("domain", domain))
+      .first();
+    if (existingCompany) {
+      throw new ConvexError(`A company with domain ${domain} is already onboarded.`);
+    }
+
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (existingUser) {
+      throw new ConvexError(`A user with email ${email} already exists.`);
+    }
+
+    const now = Date.now();
+    const companyId = await ctx.db.insert("companies", {
+      name: companyName,
+      reg_number: regNumber,
+      country,
+      location,
+      domain,
+      support_email: email,
+      status: "active",
+      createdAt: now,
+    });
+
+    const tempPassword = randomCredential(8);
+    const hashedPassword = bcrypt.hashSync(tempPassword, bcrypt.genSaltSync(10));
+    const setupToken = randomCredential(16);
+
+    const userId = await ctx.db.insert("users", {
+      companyId,
+      firstName: adminFirstName,
+      surname: adminSurname,
+      email,
+      password: hashedPassword,
+      role: "admin",
+      status: "invited",
+      needsPasswordChange: true,
+      has_completed_tour: false,
+      setupToken: await sha256hex(setupToken),
+      setupTokenExpires: now + 72 * 60 * 60 * 1000,
+      createdAt: now,
+    });
+
+    const openingBalance = Math.max(0, args.initialBalance ?? 0);
+    await ctx.db.insert("balances", {
+      companyId,
+      availableBalance: openingBalance,
+      updatedAt: now,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.emails.sendWelcomeEmail, {
+      email,
+      firstName: adminFirstName,
+      tempPassword,
+      setupToken,
+    });
+
+    await recordAuditLog(ctx, {
+      companyId,
+      userId: session.userId,
+      action: "COMPANY_ONBOARDED",
+      entityId: companyId,
+      entityType: "company",
+      details: `Onboarded ${companyName} (${domain}) with admin ${email}`,
+    });
+
+    return {
+      companyId,
+      userId,
+      companyName,
+      adminEmail: email,
+      setupPath: `/setup-password?token=${encodeURIComponent(setupToken)}`,
     };
   },
 });

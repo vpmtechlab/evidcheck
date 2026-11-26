@@ -749,6 +749,9 @@ export const getUserPreferences = query({
   },
 });
 
+const SELF_REGISTRATION_DISABLED_ERROR =
+  "Public self-registration is disabled. Organizations are onboarded directly by EvidCheck after KYB verification.";
+
 export const startRegistration = mutation({
   args: {
     companyName: v.string(),
@@ -760,65 +763,8 @@ export const startRegistration = mutation({
     surname: v.string(),
     email: v.string(),
   },
-  handler: async (ctx, args) => {
-    const email = normalizeEmail(args.email);
-    const domain = normalizeDomain(args.domain);
-
-    // Check if email is personal
-    if (isPersonalEmail(email)) {
-      throw new ConvexError(PERSONAL_EMAIL_ERROR);
-    }
-    if (!domain || !emailMatchesDomain(email, domain)) {
-      throw new ConvexError(`Your email address must belong to your company domain (${domain || "domain"}).`);
-    }
-
-    // 1. Check if domain is already taken
-    const existingCompany = await ctx.db
-      .query("companies")
-      .withIndex("by_domain", (q) => q.eq("domain", domain))
-      .first();
-
-    if (existingCompany) {
-      throw new ConvexError("Company with this domain is already registered. Please use another domain.");
-    }
-
-    // 2. Check if user email already exists
-    if (await findUserByEmail(ctx, email)) {
-      throw new ConvexError("A user with this email address already exists.");
-    }
-
-    // 3. Throttle resends so the endpoint can't be used to spam an inbox.
-    const existingVerification = await ctx.db
-      .query("registrationVerifications")
-      .withIndex("by_email", (q) => q.eq("email", email))
-      .first();
-
-    if (existingVerification) {
-      const issuedAt = existingVerification.expiresAt - 15 * 60 * 1000;
-      if (Date.now() - issuedAt < OTP_RESEND_COOLDOWN_MS) {
-        throw new ConvexError("Please wait a minute before requesting another code.");
-      }
-      await ctx.db.delete(existingVerification._id);
-    }
-
-    // 4. Generate a 6-digit OTP; store only its hash and email the plaintext.
-    const otpCode = randomSixDigitCode();
-    await ctx.db.insert("registrationVerifications", {
-      email,
-      otpCode: await sha256hex(otpCode),
-      expiresAt: Date.now() + 15 * 60 * 1000, // 15 mins
-      attempts: 0,
-      verified: false,
-      companyData: { ...args, email, domain },
-    });
-
-    await ctx.scheduler.runAfter(0, internal.emails.sendOTPEmail, {
-      email,
-      firstName: args.firstName,
-      otpCode,
-    });
-
-    return { success: true };
+  handler: async () => {
+    throw new ConvexError(SELF_REGISTRATION_DISABLED_ERROR);
   },
 });
 
@@ -827,34 +773,8 @@ export const verifyOTP = mutation({
     email: v.string(),
     code: v.string(),
   },
-  handler: async (ctx, args) => {
-    const verification = await ctx.db
-      .query("registrationVerifications")
-      .withIndex("by_email", (q) => q.eq("email", normalizeEmail(args.email)))
-      .first();
-
-    if (!verification) {
-      throw new ConvexError("Verification session not found. Please start over.");
-    }
-
-    if (verification.expiresAt < Date.now()) {
-      await ctx.db.delete(verification._id);
-      return { success: false, error: "Verification code has expired. Please request a new one." };
-    }
-
-    if (verification.otpCode !== (await sha256hex(args.code.trim()))) {
-      // Errors are returned (not thrown) so these writes persist.
-      const attempts = (verification.attempts || 0) + 1;
-      if (attempts >= MAX_OTP_ATTEMPTS) {
-        await ctx.db.delete(verification._id);
-        return { success: false, error: "Too many failed attempts. Please restart registration." };
-      }
-      await ctx.db.patch(verification._id, { attempts });
-      return { success: false, error: "Invalid verification code. Please check and try again." };
-    }
-
-    await ctx.db.patch(verification._id, { verified: true });
-    return { success: true };
+  handler: async () => {
+    throw new ConvexError(SELF_REGISTRATION_DISABLED_ERROR);
   },
 });
 
@@ -864,81 +784,7 @@ export const completeRegistration = mutation({
     code: v.string(),
     password: v.string(),
   },
-  handler: async (ctx, args) => {
-    // 1. The OTP must already have been verified, still be live, and match.
-    const verification = await ctx.db
-      .query("registrationVerifications")
-      .withIndex("by_email", (q) => q.eq("email", normalizeEmail(args.email)))
-      .first();
-
-    if (
-      !verification ||
-      verification.verified !== true ||
-      verification.expiresAt < Date.now() ||
-      verification.otpCode !== (await sha256hex(args.code.trim()))
-    ) {
-      throw new ConvexError("Invalid verification state. Please restart registration.");
-    }
-
-    assertStrongPassword(args.password);
-
-    const companyData = verification.companyData as {
-      companyName: string;
-      regNumber: string;
-      country: string;
-      location: string;
-      domain: string;
-      firstName: string;
-      surname: string;
-      email: string;
-    };
-
-    // Re-check uniqueness: another registration may have completed meanwhile.
-    const domainTaken = await ctx.db
-      .query("companies")
-      .withIndex("by_domain", (q) => q.eq("domain", companyData.domain))
-      .first();
-    if (domainTaken || (await findUserByEmail(ctx, companyData.email))) {
-      throw new ConvexError("This company or email is already registered.");
-    }
-
-    // 2. Hash password
-    const hashedPassword = bcrypt.hashSync(args.password, bcrypt.genSaltSync(10));
-
-    // 3. Create Company
-    const companyId = await ctx.db.insert("companies", {
-      name: companyData.companyName,
-      reg_number: companyData.regNumber,
-      country: companyData.country,
-      location: companyData.location,
-      domain: companyData.domain,
-      support_email: companyData.email,
-      status: "active",
-      createdAt: Date.now(),
-    });
-
-    // 4. Create User (never a superadmin: that is granted from the admin console)
-    const userId = await ctx.db.insert("users", {
-      companyId,
-      firstName: companyData.firstName,
-      surname: companyData.surname,
-      email: companyData.email,
-      password: hashedPassword,
-      role: "admin",
-      status: "active",
-      createdAt: Date.now(),
-    });
-
-    // 5. Initialize Balance
-    await ctx.db.insert("balances", {
-        companyId,
-        availableBalance: 0,
-        updatedAt: Date.now(),
-    });
-
-    // 6. Delete verification record
-    await ctx.db.delete(verification._id);
-
-    return { companyId, userId };
+  handler: async () => {
+    throw new ConvexError(SELF_REGISTRATION_DISABLED_ERROR);
   },
 });
